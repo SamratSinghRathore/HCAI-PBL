@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="box">
+    <div class="title-container">
+        <div class="title">Upload a CSV File</div>
+    </div>
+
+    <div class="main-text">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Upload</button>
+        </form>
+
+        {% if result is not None %}
+            <p>Average of numbers: <strong>{{ result }}</strong></p>
+        {% endif %}
+
+        {% if error %}
+            <p style="color: red;">{{ error }}</p>
+        {% endif %}
+
+        {% if image_url %}
+            <h3>Scatter Plot</h3>
+            <img src="{{ image_url }}" alt="Iris Scatter Plot" style="max-width: 100%; height: auto; margin-top: 20px;">
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+{% endblock script %}
