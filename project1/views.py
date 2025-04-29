@@ -15,7 +15,7 @@ from .forms import CSVUploadForm
 from django.http import HttpResponse
 
 def index(request):
-    return HttpResponse("Welcome to Project 1!")
+    return render(request, 'project1/index.html')
 
 
 import pandas as pd
