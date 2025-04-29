@@ -50,6 +50,22 @@
         .project-info li {
             margin-bottom: 10px;
         }
+
+        /* Link styling */
+        .upload-link {
+            margin-top: 30px;
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #5c6bc0;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.2em;
+        }
+
+        .upload-link:hover {
+            background-color: #3f4c8f;
+        }
     </style>
 </head>
 <body>
@@ -66,6 +82,9 @@
             </ul>
             <p>This project aims to show how Django can be used to create a simple but functional web application for data analysis and visualization.</p>
         </div>
+
+        <!-- Link to Upload File Page -->
+        <a href="{% url 'project1:upload' %}" class="upload-link">Upload a CSV File</a>
     </div>
 </body>
 </html>
