@@ -21,7 +21,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
+    path("", include("home.urls")), # ADDED THE ROUTE TO DIRET TO HOMEPAGE FROM THE START
     path("home/", include("home.urls")),
     path("admin/", admin.site.urls),
     path("demos/", include("demos.urls")),
+    path("project1/", include("project1.urls")), # # Add this line
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
