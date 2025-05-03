@@ -1,0 +1,6 @@
+django
+numpy
+matplotlib
+pandas 
+pygobject
+seaborn
