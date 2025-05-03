@@ -5,7 +5,7 @@
 
 <div class="box">
     <div class="title-container">
-        <div class="title">Upload a CSV File</div>
+        <div class="title">Selecting model and parameters</div>
     </div>
 
     <div class="main-text">
@@ -13,8 +13,7 @@
             {% csrf_token %}
             {{ form.as_p }}
             <div style="margin-top: 15px;">
-                <button type="submit" name="action" value="plot">Go to Plot</button>
-                <button type="submit" name="action" value="train">Go to Model Training</button>
+                <button type="submit" name="action" value="train">Train Model</button>
             </div>
         </form>
 

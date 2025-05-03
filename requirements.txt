@@ -4,3 +4,4 @@ matplotlib
 pandas 
 pygobject
 seaborn
+scikit-learn
