@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="box">
+    <h2>Model Training Result</h2>
+    <p><strong>Model:</strong> {{ model }}</p>
+    <p><strong>Scoring Metric:</strong> {{ scoring_metric }}</p>
+    <p><strong>Score:</strong> {{ score }}</p>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'project1:train_model' %}"><button>Train Again</button></a>
+        <a href="{% url 'project1:upload' %}"><button>Back to Upload</button></a>
+    </div>
+</div>
+{% endblock %}

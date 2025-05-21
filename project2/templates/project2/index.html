@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Learning for Text Classification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #5c6bc0;
+        }
+        h2 {
+            font-size: 1.8em;
+            color: #7986cb;
+            margin-top: 30px;
+        }
+        p {
+            font-size: 1.2em;
+            color: #555;
+            text-align: left;
+        }
+        .task-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f9f9ff;
+            border-radius: 8px;
+            text-align: left;
+        }
+        ul {
+            text-align: left;
+            line-height: 1.6;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .button {
+            margin-top: 20px;
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #5c6bc0;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+        }
+        .button:hover {
+            background-color: #3f4c8f;
+        }
+        .model-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .utility-options {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-right: 15px;
+        }
+        .results-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8eaf6;
+            border-radius: 5px;
+            text-align: left;
+        }
+        .labeling-interface {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f0f4ff;
+            border-radius: 8px;
+            text-align: left;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Active Learning for Text Classification</h1>
+        <p>This application demonstrates the implementation of active learning strategies for sentiment analysis on the IMDB 50k movie reviews dataset.</p>
+        
+        <div class="task-section">
+            <h2>Task 1: Supervised Learning Model</h2>
+            <p>First, we'll train a classifier on the complete labeled dataset to establish a baseline performance.</p>
+            <!-- <div style="margin-top: 30px;">
+                <a href="{% url 'project2:upload' %}" class="button">Upload IMDB Dataset</a>
+            </div> -->
+            <p>The classifier consists of:</p>
+            <ul>
+                <li><strong>Text Representation Module:</strong> Converts text reviews into numerical vectors</li>
+                <li><strong>Classification Module:</strong> Predicts sentiment based on the vector representation</li>
+            </ul>
+            <div class="model-options">
+                <div class="checkbox-container">
+                    <label>Text Representation: </label>
+                    <select id="representation-method">
+                        <option value="tfidf">TF-IDF</option>
+                        <option value="bow">Bag of Words</option>
+                        <option value="word2vec">Word2Vec</option>
+                        <option value="bert">BERT Embeddings</option>
+                    </select>
+                </div>
+                <div class="checkbox-container">
+                    <label>Classifier: </label>
+                    <select id="classifier-method">
+                        <option value="logreg">Logistic Regression</option>
+                        <option value="svm">Support Vector Machine</option>
+                        <option value="nn">Neural Network</option>
+                    </select>
+                </div>
+            </div>
+            <button id="train-model" class="button">Train Full Model</button>
+            <button id="load-model" class="button">Load Pre-trained Model</button>
+
+            <script>
+                document.getElementById('train-model').addEventListener('click', function() {
+                    // Get the selected values from the dropdowns
+                    const representationMethod = document.getElementById('representation-method').value;
+                    const classifierMethod = document.getElementById('classifier-method').value;
+                    
+                    // Display a loading message
+                    document.getElementById('model-results').innerHTML = 
+                        '<p><strong>Training in progress...</strong> This may take a few minutes.</p>';
+                    
+                    // Send the request with selected parameters
+                    fetch("{% url 'project2:train_model' %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            representation: representationMethod,
+                            classifier: classifierMethod
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('model-results').innerHTML = 
+                                `<p><strong>Error:</strong> ${data.error}</p>`;
+                        } else {
+                            document.getElementById('model-results').innerHTML = 
+                                `<p><strong>Training complete!</strong></p>
+                                <p>Model: ${data.representation_name} + ${data.classifier_name}</p>
+                                <p>Test Accuracy: ${data.accuracy.toFixed(4)}</p>
+                                <p>Training time: ${data.training_time} seconds</p>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        document.getElementById('model-results').innerHTML = 
+                            `<p><strong>Error during training:</strong> ${error}</p>`;
+                    });
+                });
+
+                document.getElementById('load-model').addEventListener('click', function() {
+                    document.getElementById('model-results').innerHTML = 
+                        '<p><strong>Loading pre-trained model...</strong></p>';
+                        
+                    fetch("{% url 'project2:load_model' %}", {
+                        method: 'GET',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('model-results').innerHTML = 
+                                `<p><strong>Error:</strong> ${data.error}</p>`;
+                        } else {
+                            // Update the dropdown selections to match the loaded model
+                            document.getElementById('representation-method').value = data.representation;
+                            document.getElementById('classifier-method').value = data.classifier;
+                            
+                            document.getElementById('model-results').innerHTML = 
+                                `<p><strong>Model loaded successfully!</strong></p>
+                                <p>Model description: ${data.representation_name} + ${data.classifier_name}</p>
+                                <p>Pre-trained accuracy: ${data.accuracy.toFixed(4)}</p>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        document.getElementById('model-results').innerHTML = 
+                            `<p><strong>Error loading model:</strong> ${error}</p>`;
+                    });
+                });
+            </script>
+            <div id="model-results" class="results-panel">
+                <p><strong>Results will be displayed here...</strong></p>
+            </div>
+        </div>
+        
+        <div class="task-section">
+            <h2>Task 2: Pool-based Active Learning</h2>
+            <p>Now, we'll implement active learning strategies to train a model using minimal labeled data.</p>
+            <p>Select the utility functions for active learning:</p>
+            <div class="utility-options">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="uncertainty" checked>
+                    <label for="uncertainty">Uncertainty Sampling</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="diversity">
+                    <label for="diversity">Diversity Sampling</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="qbc">
+                    <label for="qbc">Query by Committee</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="expected-error">
+                    <label for="expected-error">Expected Error Reduction</label>
+                </div>
+            </div>
+            <p>Select simulation method:</p>
+            <div class="utility-options">
+                <div class="checkbox-container">
+                    <input type="radio" id="simulated" name="user-mode" checked>
+                    <label for="simulated">Simulated User (Automatic)</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="radio" id="interactive" name="user-mode">
+                    <label for="interactive">Interactive Labeling Interface</label>
+                </div>
+            </div>
+            <button id="start-active-learning" class="button">Start Active Learning</button>
+            <div id="active-learning-results" class="results-panel">
+                <p><strong>Active learning progress will be displayed here...</strong></p>
+            </div>
+            
+            <div id="labeling-interface" class="labeling-interface">
+                <h3>Manual Labeling Interface</h3>
+                <p><strong>Review:</strong></p>
+                <textarea id="review-text" rows="6" readonly></textarea>
+                <p>Is this review positive or negative?</p>
+                <button id="positive-btn" class="button">Positive</button>
+                <button id="negative-btn" class="button">Negative</button>
+                <p><strong>Progress:</strong> <span id="labeling-progress">0/0</span> reviews labeled</p>
+            </div>
+        </div>
+        
+        <div class="task-section">
+            <h2>Extensions</h2>
+            <p>Advanced active learning strategies:</p>
+            <div class="utility-options">
+                <div class="checkbox-container">
+                    <input type="checkbox" id="batch-al">
+                    <label for="batch-al">Batch Active Learning</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="stream-al">
+                    <label for="stream-al">Stream-based Active Learning</label>
+                </div>
+            </div>
+            <div id="batch-size-container" style="display: none;">
+                <label for="batch-size">Batch Size:</label>
+                <input type="number" id="batch-size" min="2" max="50" value="5">
+            </div>
+            <button id="start-extension" class="button">Run Extension</button>
+            <div id="extension-results" class="results-panel">
+                <p><strong>Extension results will be displayed here...</strong></p>
+            </div>
+        </div>
+        
+        <!-- <div style="margin-top: 30px;">
+            <a href="{% url 'project2:upload' %}" class="button">Upload IMDB Dataset</a>
+        </div> -->
+    </div>
+
+    <script>
+        // Basic interactivity for the demo
+        document.getElementById('batch-al').addEventListener('change', function() {
+            document.getElementById('batch-size-container').style.display = this.checked ? 'block' : 'none';
+        });
+
+        document.getElementById('interactive').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('labeling-interface').style.display = 'block';
+            }
+        });
+
+        document.getElementById('simulated').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('labeling-interface').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
