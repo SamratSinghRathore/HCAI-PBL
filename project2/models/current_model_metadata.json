@@ -1,0 +1,1 @@
+{"representation": "tfidf", "classifier": "logreg", "accuracy": 0.8977, "representation_name": "TF-IDF", "classifier_name": "Logistic Regression"}

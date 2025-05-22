@@ -120,9 +120,6 @@
         <div class="task-section">
             <h2>Task 1: Supervised Learning Model</h2>
             <p>First, we'll train a classifier on the complete labeled dataset to establish a baseline performance.</p>
-            <!-- <div style="margin-top: 30px;">
-                <a href="{% url 'project2:upload' %}" class="button">Upload IMDB Dataset</a>
-            </div> -->
             <p>The classifier consists of:</p>
             <ul>
                 <li><strong>Text Representation Module:</strong> Converts text reviews into numerical vectors</li>
@@ -134,15 +131,15 @@
                     <select id="representation-method">
                         <option value="tfidf">TF-IDF</option>
                         <option value="bow">Bag of Words</option>
-                        <option value="word2vec">Word2Vec</option>
-                        <option value="bert">BERT Embeddings</option>
+                        <!-- <option value="word2vec">Word2Vec</option> -->
+                        <!-- <option value="bert">BERT Embeddings</option> -->
                     </select>
                 </div>
                 <div class="checkbox-container">
                     <label>Classifier: </label>
                     <select id="classifier-method">
                         <option value="logreg">Logistic Regression</option>
-                        <option value="svm">Support Vector Machine</option>
+                        <!-- <option value="svm">Support Vector Machine</option> -->
                         <option value="nn">Neural Network</option>
                     </select>
                 </div>
@@ -193,37 +190,43 @@
                 });
 
                 document.getElementById('load-model').addEventListener('click', function() {
-                    document.getElementById('model-results').innerHTML = 
-                        '<p><strong>Loading pre-trained model...</strong></p>';
-                        
-                    fetch("{% url 'project2:load_model' %}", {
-                        method: 'GET',
-                        headers: {
-                            'X-CSRFToken': '{{ csrf_token }}'
-                        }
+                document.getElementById('model-results').innerHTML = 
+                    '<p><strong>Loading pre-trained model...</strong></p>';
+                    
+                fetch("{% url 'project2:load_model' %}", {
+                    method: 'POST',  // Changed from GET to POST
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',  // Use the csrftoken variable from before
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        // Get current dropdown selections to load the corresponding model
+                        representation: document.getElementById('representation-method').value,
+                        classifier: document.getElementById('classifier-method').value
                     })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            document.getElementById('model-results').innerHTML = 
-                                `<p><strong>Error:</strong> ${data.error}</p>`;
-                        } else {
-                            // Update the dropdown selections to match the loaded model
-                            document.getElementById('representation-method').value = data.representation;
-                            document.getElementById('classifier-method').value = data.classifier;
-                            
-                            document.getElementById('model-results').innerHTML = 
-                                `<p><strong>Model loaded successfully!</strong></p>
-                                <p>Model description: ${data.representation_name} + ${data.classifier_name}</p>
-                                <p>Pre-trained accuracy: ${data.accuracy.toFixed(4)}</p>`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
                         document.getElementById('model-results').innerHTML = 
-                            `<p><strong>Error loading model:</strong> ${error}</p>`;
-                    });
+                            `<p><strong>Error:</strong> ${data.error}</p>`;
+                    } else {
+                        // Update the dropdown selections to match the loaded model
+                        document.getElementById('representation-method').value = data.representation;
+                        document.getElementById('classifier-method').value = data.classifier;
+                        
+                        document.getElementById('model-results').innerHTML = 
+                            `<p><strong>Model loaded successfully!</strong></p>
+                            <p>Model description: ${data.representation_name} + ${data.classifier_name}</p>
+                            <p>Pre-trained accuracy: ${data.accuracy.toFixed(4)}</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('model-results').innerHTML = 
+                        `<p><strong>Error loading model:</strong> ${error}</p>`;
                 });
+            });
             </script>
             <div id="model-results" class="results-panel">
                 <p><strong>Results will be displayed here...</strong></p>
@@ -301,10 +304,6 @@
                 <p><strong>Extension results will be displayed here...</strong></p>
             </div>
         </div>
-        
-        <!-- <div style="margin-top: 30px;">
-            <a href="{% url 'project2:upload' %}" class="button">Upload IMDB Dataset</a>
-        </div> -->
     </div>
 
     <script>
