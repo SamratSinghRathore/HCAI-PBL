@@ -10,4 +10,5 @@ urlpatterns = [
     path('start_active_learning/', views.start_active_learning, name='start_active_learning'),
     path('submit_label/', views.submit_label, name='submit_label'),
     path('get_next_sample/', views.get_next_sample, name='get_next_sample'),
+    path('train_on_labeled_data/', views.train_on_labeled_data, name='train_on_labeled_data'),
 ]
