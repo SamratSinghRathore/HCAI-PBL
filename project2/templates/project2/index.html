@@ -227,6 +227,7 @@
                         `<p><strong>Error loading model:</strong> ${error}</p>`;
                 });
             });
+                
             </script>
             <div id="model-results" class="results-panel">
                 <p><strong>Results will be displayed here...</strong></p>
@@ -278,7 +279,7 @@
                 <p>Is this review positive or negative?</p>
                 <button id="positive-btn" class="button">Positive</button>
                 <button id="negative-btn" class="button">Negative</button>
-                <p><strong>Progress:</strong> <span id="labeling-progress">0/0</span> reviews labeled</p>
+                <p><strong>Progress:</strong> <span id="labeling-progress">0</span> reviews labeled</p>
             </div>
         </div>
         
@@ -323,6 +324,50 @@
                 document.getElementById('labeling-interface').style.display = 'none';
             }
         });
+    </script>
+    <script>
+    document.getElementById('start-active-learning').addEventListener('click', function () {
+        const utilities = [];
+        if (document.getElementById('uncertainty').checked) utilities.push('uncertainty');
+        if (document.getElementById('diversity').checked) utilities.push('diversity');
+        if (document.getElementById('qbc').checked) utilities.push('qbc');
+        if (document.getElementById('expected-error').checked) utilities.push('expected-error');
+
+        const mode = document.getElementById('interactive').checked ? 'interactive' : 'simulated';
+
+        document.getElementById('active-learning-results').innerHTML = 
+            '<p><strong>Active learning started...</strong></p>';
+
+        fetch("{% url 'project2:start_active_learning' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                utilities: utilities,
+                mode: mode
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('active-learning-results').innerHTML =
+                    `<p><strong>Error:</strong> ${data.error}</p>`;
+            } else {
+                document.getElementById('active-learning-results').innerHTML =
+                    `<p><strong>Active Learning Complete!</strong></p>
+                    <p>Selected Strategy: ${utilities.join(', ')}</p>
+                    <p>Final Accuracy: ${data.accuracy.toFixed(4)}</p>
+                    <p>Iterations: ${data.iterations}</p>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('active-learning-results').innerHTML =
+                `<p><strong>Error during active learning:</strong> ${error}</p>`;
+        });
+    });
     </script>
 </body>
 </html>

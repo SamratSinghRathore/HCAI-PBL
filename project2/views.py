@@ -34,6 +34,9 @@ from gensim.models import Word2Vec
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
+from scipy.sparse import vstack as sparse_vstack
+# Temporary global state (in-memory, resets with server restart)
+ACTIVE_LEARNING_STATE = {}
 
 
 def index(request):
@@ -198,6 +201,117 @@ def load_model(request):
     
     else:
         return JsonResponse({'error': 'POST method required'}, status=400)
+
+def start_active_learning(request):
+    global ACTIVE_LEARNING_STATE
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            utilities = data.get("utilities", [])
+            mode = data.get("mode", "simulated")  # 'simulated' or 'interactive'
+
+            X_train, X_test, y_train, y_test = load_IMDB_data()
+
+            vectorizer = TfidfVectorizer(max_features=10000)
+            X_train_vec = vectorizer.fit_transform(X_train)
+            X_test_vec = vectorizer.transform(X_test)
+
+            model = LogisticRegression(max_iter=1000)
+
+            # Simulate unlabeled/labeled split
+            n_initial = 100  # Initial labeled set
+            np.random.seed(42)
+            indices = np.random.permutation(len(X_train_vec.toarray()))
+
+            labeled_idx = indices[:n_initial]
+            unlabeled_idx = indices[n_initial:]
+
+            X_labeled = X_train_vec[labeled_idx]
+            y_labeled = np.array(y_train)[labeled_idx]
+
+            # AL Loop (limited to 10 iterations for speed)
+            for i in range(10):
+                model.fit(X_labeled, y_labeled)
+
+                # Use uncertainty sampling (as example)
+                probs = model.predict_proba(X_train_vec[unlabeled_idx])
+                uncertainty = np.abs(probs[:, 1] - 0.5)
+                query_idx = np.argmin(uncertainty)
+
+                true_idx = unlabeled_idx[query_idx]
+                new_x = X_train_vec[true_idx]
+                new_y = y_train[true_idx] if mode == "simulated" else None  # Simulate label
+
+                # Update pools
+                X_labeled = sparse_vstack([X_labeled, new_x])
+                y_labeled = np.append(y_labeled, new_y)
+                unlabeled_idx = np.delete(unlabeled_idx, query_idx)
+
+                # Stop if simulated mode and enough samples
+                if mode == "simulated" and len(y_labeled) >= 500:
+                    break
+
+            final_accuracy = model.score(X_test_vec, y_test)
+
+            # Save state if interactive
+            if mode == "interactive":
+                ACTIVE_LEARNING_STATE = {
+                    "X_train_vec": X_train_vec,
+                    "y_train": y_train,
+                    "unlabeled_idx": unlabeled_idx.tolist(),
+                    "labeled_X": X_labeled.tolist(),
+                    "labeled_y": y_labeled.tolist(),
+                    "vectorizer": vectorizer,
+                    "model": model,
+                }
+
+            return JsonResponse({
+                "accuracy": float(final_accuracy),
+                "iterations": i + 1
+            })
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)+"start_active_learning"}, status=500)
+
+    return JsonResponse({"error": "POST method required"}, status=400)
+
+
+def submit_label(request):
+    global ACTIVE_LEARNING_STATE
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            label = data.get("label")
+
+            # Get next sample
+            idx = ACTIVE_LEARNING_STATE["unlabeled_idx"].pop(0)
+            vector = ACTIVE_LEARNING_STATE["X_train_vec"][idx]
+            
+            ACTIVE_LEARNING_STATE["labeled_X"].append(vector.toarray().tolist()[0])
+            ACTIVE_LEARNING_STATE["labeled_y"].append(label)
+
+            return JsonResponse({"status": "label received", "remaining": len(ACTIVE_LEARNING_STATE["unlabeled_idx"])})
+        except Exception as e:
+            return JsonResponse({"error": str(e)+"submit_label"}, status=500)
+
+    return JsonResponse({"error": "POST method required"}, status=400)
+
+def get_next_sample(request):
+    global ACTIVE_LEARNING_STATE
+
+    if request.method == 'GET':
+        try:
+            idx = ACTIVE_LEARNING_STATE["unlabeled_idx"][0]
+            review = ACTIVE_LEARNING_STATE["vectorizer"].inverse_transform(ACTIVE_LEARNING_STATE["X_train_vec"][idx])[0]
+
+            return JsonResponse({"review": " ".join(review)})
+        except Exception as e:
+            return JsonResponse({"error": str(e)+"get_next_sample"}, status=500)
+
+    return JsonResponse({"error": "GET method required"}, status=400)
+
 
 def load_IMDB_data():
     # Load the IMDB dataset
