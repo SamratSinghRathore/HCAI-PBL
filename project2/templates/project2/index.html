@@ -326,6 +326,57 @@
         });
     </script>
     <script>
+    function loadNextSample() {
+        fetch("{% url 'project2:get_next_sample' %}")
+            .then(response => response.json())
+            .then(data => {
+                if (data.review) {
+                    document.getElementById('review-text').value = data.review;
+                } else {
+                    document.getElementById('review-text').value = 'No more unlabeled data or session not started.';
+                }
+            })
+            .catch(error => {
+                document.getElementById('review-text').value = 'Error fetching sample: ' + error;
+            });
+    }
+    </script>
+    <script>
+    document.getElementById('positive-btn').addEventListener('click', function () {
+        submitLabel('positive');
+    });
+
+    document.getElementById('negative-btn').addEventListener('click', function () {
+        submitLabel('negative');
+    });
+
+    function submitLabel(label) {
+        fetch("{% url 'project2:submit_label' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ label: label })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status) {
+                const progress = document.getElementById('labeling-progress');
+                progress.textContent = parseInt(progress.textContent) + 1;
+                loadNextSample();
+            } else {
+                alert(data.error || 'Label submission failed.');
+            }
+        })
+        .catch(error => {
+            alert('Error submitting label: ' + error);
+        });
+    }
+    </script>
+
+
+    <script>
     document.getElementById('start-active-learning').addEventListener('click', function () {
         const utilities = [];
         if (document.getElementById('uncertainty').checked) utilities.push('uncertainty');
@@ -354,12 +405,20 @@
             if (data.error) {
                 document.getElementById('active-learning-results').innerHTML =
                     `<p><strong>Error:</strong> ${data.error}</p>`;
-            } else {
+            } else if (data.accuracy !== undefined && data.iterations !== undefined) {
                 document.getElementById('active-learning-results').innerHTML =
                     `<p><strong>Active Learning Complete!</strong></p>
                     <p>Selected Strategy: ${utilities.join(', ')}</p>
                     <p>Final Accuracy: ${data.accuracy.toFixed(4)}</p>
                     <p>Iterations: ${data.iterations}</p>`;
+            } else if (data.message) {
+                document.getElementById('active-learning-results').innerHTML =
+                    `<p><strong>${data.message}</strong></p>`;
+                document.getElementById('labeling-interface').style.display = 'block';
+                loadNextSample();  // load first review
+            } else {
+                document.getElementById('active-learning-results').innerHTML =
+                    `<p><strong>Active Learning started in interactive mode.</strong></p>`;
             }
         })
         .catch(error => {
