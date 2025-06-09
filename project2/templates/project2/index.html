@@ -267,7 +267,7 @@
                     <label for="interactive">Interactive Labeling Interface</label>
                 </div>
             </div>
-            <button id="start-active-learning" class="button">Start Active Learning</button>
+            <button id="start-active-learning" class="button" title="Required to be clicked also for Interactive Labeling Interface">Start Active Learning</button>
             <div id="active-learning-results" class="results-panel">
                 <p><strong>Active learning progress will be displayed here...</strong></p>
             </div>
@@ -281,6 +281,12 @@
                 <button id="negative-btn" class="button">Negative</button>
                 <p><strong>Progress:</strong> <span id="labeling-progress">0</span> reviews labeled</p>
             </div>
+            <hr>
+            <button id="train-labeled-model" class="button">Train on Labeled Data</button>
+            <div id="labeled-training-results" class="results-panel">
+                <p><strong>Train the model to see accuracy from labeled data.</strong></p>
+            </div>
+
         </div>
         
         <div class="task-section">
@@ -428,5 +434,36 @@
         });
     });
     </script>
+    <script>
+    document.getElementById('train-labeled-model').addEventListener('click', function () {
+        document.getElementById('labeled-training-results').innerHTML =
+            '<p><strong>Training on labeled data...</strong></p>';
+
+        fetch("{% url 'project2:train_on_labeled_data' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('labeled-training-results').innerHTML =
+                    `<p><strong>Error:</strong> ${data.error}</p>`;
+            } else {
+                document.getElementById('labeled-training-results').innerHTML =
+                    `<p><strong>Model trained on labeled data.</strong></p>
+                    <p>Accuracy: ${data.accuracy.toFixed(4)}</p>
+                    <p>Labeled Samples Used: ${data.num_samples}</p>`;
+            }
+        })
+        .catch(error => {
+            document.getElementById('labeled-training-results').innerHTML =
+                `<p><strong>Error training model:</strong> ${error}</p>`;
+        });
+    });
+    </script>
+
 </body>
 </html>
