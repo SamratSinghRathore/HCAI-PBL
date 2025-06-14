@@ -9,6 +9,19 @@
     </div>
 
     <div class="main-text">
+        <div class="sparsity-control">
+            <h3>Tree Sparsity Control</h3>
+            <div class="slider-container">
+                <label for="lambda">Sparsity Parameter (λ): <span id="lambda-value">{{ lambda_param|floatformat:2 }}</span></label>
+                <input type="range" id="lambda" name="lambda" 
+                       min="0.01" max="1" step="0.01" 
+                       value="{{ lambda_param }}">
+            </div>
+            <p class="slider-description">
+                Higher values of α (alpha) lead to sparser trees through cost-complexity pruning.
+            </p>
+        </div>
+
         {% if success %}
             <div class="metrics-container">
                 <div class="metric-card">
@@ -26,7 +39,7 @@
                     <h3>Decision Tree Structure</h3>
                     <p class="description">The decision tree shows how the model splits the data to classify penguin species.</p>
                     <div class="image-container">
-                        <img src="{% static 'project3/decision_tree.png' %}" alt="Decision Tree" />
+                        <img src="{% static 'project3/decision_tree.png' %}?v={{ lambda_param }}" alt="Decision Tree" />
                     </div>
                 </div>
             </div>
@@ -45,7 +58,23 @@
     </div>
 </div>
 
+
 <style>
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    margin: 10px 0;
+}
+
+.progress-indicator {
+    width: 0%;
+    height: 100%;
+    background-color: #4CAF50;
+    border-radius: 10px;
+    transition: width 0.3s ease-in-out;
+}
     .box {
         width: 90%;
         max-width: 1200px;
@@ -167,5 +196,105 @@
             max-width: 300px;
         }
     }
+
+    .sparsity-control {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .slider-container {
+        margin: 20px 0;
+    }
+
+    .slider-container label {
+        display: block;
+        margin-bottom: 10px;
+        color: #2c3e50;
+    }
+
+    input[type="range"] {
+        width: 100%;
+        margin: 10px 0;
+    }
+
+    .slider-description {
+        color: #666;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+    .error-message {
+        background-color: #fee;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        text-align: center;
+        color: #c00;
+    }
 </style>
+
+<script>
+document.getElementById('lambda').addEventListener('input', function(e) {
+    const value = parseFloat(e.target.value).toFixed(2);
+    document.getElementById('lambda-value').textContent = value;
+});
+
+document.getElementById('lambda').addEventListener('change', function(e) {
+    const value = parseFloat(e.target.value).toFixed(2);
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('lambda', value);
+    window.location.href = currentUrl.toString();
+});
+</script>
+
+<script>
+document.getElementById('training-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show progress container
+    document.getElementById('progress-container').style.display = 'block';
+    const progressMessage = document.getElementById('progress-message');
+    const progressBar = document.querySelector('.progress-indicator');
+    
+    // Submit the form data
+    fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this),
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.text();
+    })
+    .then(html => {
+        // Update progress stages
+        const stages = [
+            'Training model...',
+            'Calculating metrics...',
+            'Creating visualization...',
+            'Converting tree structure...',
+            'Saving results...',
+            'Complete!'
+        ];
+        
+        let currentStage = 0;
+        const intervalId = setInterval(() => {
+            if (currentStage < stages.length) {
+                progressMessage.textContent = stages[currentStage];
+                progressBar.style.width = `${(currentStage + 1) * (100/stages.length)}%`;
+                currentStage++;
+            } else {
+                clearInterval(intervalId);
+                // Refresh the page to show results
+                location.reload();
+            }
+        }, 1000);
+    })
+    .catch(error => {
+        progressMessage.textContent = 'Error: ' + error.message;
+        progressMessage.style.color = 'red';
+    });
+});
+</script>
 {% endblock %}
