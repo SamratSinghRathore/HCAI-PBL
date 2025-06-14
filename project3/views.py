@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+import seaborn as sns
 
 def index(request):
     # Load data
@@ -63,34 +64,99 @@ def index(request):
     return render(request, 'project3/index.html', context)
 
 
+from django.shortcuts import render
+from palmerpenguins import load_penguins
+import pandas as pd
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import os
+from django.conf import settings
+
 def decision_tree(request):
-    # Load data
-    penguins = load_penguins()
-    penguins = penguins.dropna()
-    
-    # Prepare features and target
-    y = penguins['species']
-    X = penguins.drop('species', axis=1)
-    
-    # Convert categorical variables
-    le = LabelEncoder()
-    X['sex'] = le.fit_transform(X['sex'])
-    X['island'] = le.fit_transform(X['island'])
-    
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Train decision tree
-    clf = DecisionTreeClassifier(random_state=42)
-    clf.fit(X_train, y_train)
-    
-    # Get accuracy and number of leaves
-    accuracy = clf.score(X_test, y_test)
-    n_leaves = clf.get_n_leaves()
-    
-    context = {
-        'accuracy': round(accuracy * 100, 2),
-        'n_leaves': n_leaves,
-    }
+    try:
+        # Load data
+        penguins = load_penguins()
+        penguins = penguins.dropna()
+        
+        # Prepare features and target
+        y = penguins['species']
+        X = penguins.drop(['species'], axis=1)
+        
+        # Convert categorical variables
+        le = LabelEncoder()
+        X['sex'] = le.fit_transform(X['sex'].astype(str))
+        X['island'] = le.fit_transform(X['island'])
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Train decision tree with better parameters
+        clf = DecisionTreeClassifier(
+            random_state=42, 
+            max_depth=3,
+            min_samples_split=20,
+            criterion='entropy',
+            class_weight='balanced'
+        )
+        clf.fit(X_train, y_train)
+        
+        # Get metrics
+        accuracy = clf.score(X_test, y_test)
+        n_leaves = clf.get_n_leaves()
+        
+        # Calculate feature importance
+        feature_importance = pd.DataFrame({
+            'feature': X.columns,
+            'importance': clf.feature_importances_
+        }).sort_values('importance', ascending=False)
+        
+        # Create tree visualization with enhanced styling
+        plt.figure(figsize=(20, 12))
+        plt.title('Palmer Penguins Decision Tree Classification', pad=20, size=16)
+        plot_tree(clf, 
+                 feature_names=X.columns,
+                 class_names=clf.classes_,
+                 filled=True,
+                 rounded=True,
+                 fontsize=10,
+                 proportion=True,
+                 precision=2)
+        
+        # Save the main tree plot
+        static_dir = os.path.join(settings.BASE_DIR, 'static', 'project3')
+        os.makedirs(static_dir, exist_ok=True)
+        plt.savefig(os.path.join(static_dir, 'decision_tree.png'), 
+                   dpi=300, 
+                   bbox_inches='tight',
+                   pad_inches=0.5)
+        plt.close()
+        
+        # Create feature importance plot
+        plt.figure(figsize=(10, 6))
+        plt.title('Feature Importance in Classification', pad=20, size=14)
+        sns.barplot(data=feature_importance, x='importance', y='feature', palette='viridis')
+        plt.xlabel('Importance Score')
+        plt.ylabel('Features')
+        plt.tight_layout()
+        plt.savefig(os.path.join(static_dir, 'feature_importance.png'), 
+                   dpi=300, 
+                   bbox_inches='tight')
+        plt.close()
+        
+        context = {
+            'accuracy': round(accuracy * 100, 2),
+            'n_leaves': n_leaves,
+            'features': feature_importance.to_dict('records'),
+            'success': True,
+            'error_message': None
+        }
+        
+    except Exception as e:
+        context = {
+            'success': False,
+            'error_message': str(e)
+        }
     
     return render(request, 'project3/decision_tree.html', context)
