@@ -154,15 +154,15 @@ def decision_tree(request):
     return render(request, 'project3/decision_tree.html', context)
 
 
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import r2_score, mean_squared_error
 import numpy as np
 
-def linear_regression(request):
+def logistic_regression(request):
     pass
 
     context = {
         'success': False,
         }
 
-    return render(request, 'project3/linear_regression.html', context)
+    return render(request, 'project3/logistic_regression.html', context)
