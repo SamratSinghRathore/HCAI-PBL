@@ -5,4 +5,5 @@ app_name = 'project3'
 
 urlpatterns = [
     path('', views.index, name='index'),
+    path('decision-tree/', views.decision_tree, name='decision_tree'),
 ]

@@ -16,14 +16,16 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', include('home.urls')),
-    path('project1/', include('project1.urls')),
-    path('project2/', include('project2.urls')),
-    path('project3/', include('project3.urls')),  # Add this line to register project3 URLs
+    path("", include("home.urls")), # ADDED THE ROUTE TO DIRET TO HOMEPAGE FROM THE START
+    path("home/", include("home.urls")),
+    path("admin/", admin.site.urls),
+    path("demos/", include("demos.urls")),
+    path("project1/", include("project1.urls")), # # Add this line
+    path("project2/", include("project2.urls")), # # Project 2
+    path("project3/", include("project3.urls")), # # Project 3
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
