@@ -60,11 +60,40 @@
             </div>
         </div>
 
-        <div class="decision-tree-button-container">
-            <a href="{% url 'project3:decision_tree' %}" class="decision-tree-button">
-                Generate Decision Tree Analysis →
-            </a>
-        </div>
+    <div class="decision-tree-button-container">
+    <a href="{% url 'project3:decision_tree' %}" class="analysis-button">
+        Generate Decision Tree Analysis →
+    </a>
+    <a href="{% url 'project3:logistic_regression' %}" class="analysis-button">
+        Generate Logistic Regression Analysis →
+    </a>
+</div>
+
+<style>
+    .decision-tree-button-container {
+        margin: 40px 0;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
+
+    .analysis-button {
+        display: inline-block;
+        padding: 15px 30px;
+        background-color: #4a90e2;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
+
+    .analysis-button:hover {
+        background-color: #357abd;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+</style>
     </div>
 </div>
 

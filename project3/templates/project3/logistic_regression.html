@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="box">
+    <div class="header-section">
+        <h1>Logistic Regression Analysis</h1>
+        <h3>Palmer Penguins Classification</h3>
+    </div>
+
+    <div class="feature-selection">
+        <h3>Feature Selection</h3>
+        <form id="feature-form" method="post">
+            {% csrf_token %}
+            <div class="feature-checkboxes">
+                {% for feature in features %}
+                <div class="checkbox-container">
+                    <input type="checkbox" 
+                           id="{{ feature }}" 
+                           name="selected_features" 
+                           value="{{ feature }}"
+                           {% if feature in selected_features %}checked{% endif %}>
+                    <label for="{{ feature }}">{{ feature }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="train-button">Retrain Model</button>
+        </form>
+    </div>
+
+    <div class="main-content">
+        {% if success %}
+            <div class="metrics-container">
+                <div class="metric-card">
+                    <h3>Test Accuracy</h3>
+                    <div class="metric-value">{{ accuracy }}%</div>
+                </div>
+            </div>
+
+            {% if image_url %}
+                <div class="visualization-section">
+                    <div class="feature-importance">
+                        <h3>Feature Importance</h3>
+                        <div class="image-container">
+                            <img src="{{ image_url }}" alt="Feature Importance" />
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="error-message">
+                <h3>Error in Logistic Regression Analysis</h3>
+                <p>{{ error_message }}</p>
+            </div>
+        {% endif %}
+
+        <div class="back-button-container">
+            <a href="{% url 'project3:index' %}" class="back-button">
+                ← Back to Dataset Overview
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.feature-selection {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.feature-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px;
+}
+
+.train-button {
+    background-color: #4a90e2;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 15px;
+    transition: background-color 0.3s;
+}
+
+.train-button:hover {
+    background-color: #357abd;
+}
+
+.box {
+    width: 90%;
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    position: relative;
+    transform: none;
+    top: auto;
+    left: auto;
+    display: block;
+}
+
+.header-section {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.main-title {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.main-subtitle {
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.box {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.metrics-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.metric-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 200px;
+}
+
+.metric-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #4a90e2;
+}
+
+.visualization-section {
+    margin: 40px 0;
+}
+
+.image-container {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.image-container img {
+    max-width: 100%;
+    height: auto;
+}
+
+.back-button-container {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.back-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #4a90e2;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.back-button:hover {
+    background-color: #357abd;
+}
+
+.error-message {
+    color: red;
+    text-align: center;
+    padding: 20px;
+}
+</style>
+{% endblock %}

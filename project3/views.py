@@ -72,7 +72,6 @@ from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 import os
 from django.conf import settings
-from django.http import JsonResponse
 
 def decision_tree(request):
     try:
@@ -153,3 +152,92 @@ def decision_tree(request):
         }
     
     return render(request, 'project3/decision_tree.html', context)
+
+
+from django.shortcuts import render
+from palmerpenguins import load_penguins
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+import matplotlib.pyplot as plt
+import os
+from django.conf import settings
+
+def logistic_regression(request):
+    try:
+        # Load and prepare data
+        penguins = load_penguins()
+        penguins = penguins.dropna()
+        
+        # Get all available features (excluding target)
+        all_features = [col for col in penguins.columns if col != 'species']
+        
+        # Get selected features from POST request or use all features by default
+        if request.method == 'POST':
+            selected_features = request.POST.getlist('selected_features')
+            if not selected_features:  # If nothing selected, use all features
+                selected_features = all_features
+        else:
+            selected_features = all_features
+        
+        # Prepare features and target
+        y = penguins['species']
+        X = penguins[selected_features]
+        
+        # Encode categorical variables if they are selected
+        le = LabelEncoder()
+        if 'sex' in selected_features:
+            X['sex'] = le.fit_transform(X['sex'].astype(str))
+        if 'island' in selected_features:
+            X['island'] = le.fit_transform(X['island'].astype(str))
+
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42, stratify=y
+        )
+
+        # Train logistic regression
+        model = LogisticRegression(max_iter=1000)
+        model.fit(X_train, y_train)
+
+        # Get accuracy
+        accuracy = model.score(X_test, y_test)
+        
+        # Create visualization of coefficients
+        plt.figure(figsize=(12, 6))
+        feature_importance = pd.DataFrame({
+            'feature': X.columns,
+            'importance': abs(model.coef_[0])
+        })
+        feature_importance = feature_importance.sort_values('importance', ascending=True)
+        
+        plt.barh(feature_importance['feature'], feature_importance['importance'])
+        plt.title('Feature Importance in Logistic Regression')
+        plt.xlabel('Absolute Coefficient Value')
+        
+        # Save the plot
+        static_dir = os.path.join(settings.BASE_DIR, 'static', 'project3')
+        os.makedirs(static_dir, exist_ok=True)
+        plt.savefig(os.path.join(static_dir, 'logistic_regression.png'), 
+                   dpi=300, bbox_inches='tight', pad_inches=0.5)
+        plt.close()
+
+        context = {
+            'features': all_features,
+            'selected_features': selected_features,
+            'accuracy': round(accuracy * 100, 2),
+            'success': True,
+            'error_message': None,
+            'image_url': '/static/project3/logistic_regression.png'
+        }
+        
+    except Exception as e:
+        context = {
+            'features': all_features if 'all_features' in locals() else [],
+            'selected_features': [],
+            'success': False,
+            'error_message': str(e)
+        }
+    
+    return render(request, 'project3/logistic_regression.html', context)
