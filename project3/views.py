@@ -6,6 +6,14 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 import seaborn as sns
 
+import dice_ml
+from dice_ml import Dice
+from dice_ml.utils import helpers
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedShuffleSplit
+import random
+import numpy as np
+
 def index(request):
     # Load data
     penguins = load_penguins()
@@ -154,16 +162,6 @@ def decision_tree(request):
     return render(request, 'project3/decision_tree.html', context)
 
 
-from django.shortcuts import render
-from palmerpenguins import load_penguins
-import pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-import matplotlib.pyplot as plt
-import os
-from django.conf import settings
-
 def logistic_regression(request):
     try:
         # Load and prepare data
@@ -241,3 +239,134 @@ def logistic_regression(request):
         }
     
     return render(request, 'project3/logistic_regression.html', context)
+
+
+def counterfactual(request):
+    try:
+        # Load and clean data
+        penguins = load_penguins()
+        penguins = penguins.dropna()
+        
+        # Target and features
+        target_col = 'species'
+        all_features = [col for col in penguins.columns if col != target_col]
+        
+        if request.method == 'POST':
+            selected_features = request.POST.getlist('selected_features')
+            if not selected_features:
+                selected_features = all_features
+            desired_class = request.POST.get('desired_class')
+        else:
+            selected_features = all_features
+            desired_class = None  # Set later based on prediction
+        
+        # Prepare feature matrix X and target vector y
+        X = penguins[selected_features].copy()
+        y = penguins[target_col]
+
+        # Encode categorical columns
+        le = LabelEncoder()
+        if 'sex' in selected_features:
+            X['sex'] = le.fit_transform(X['sex'].astype(str))
+        if 'island' in selected_features:
+            X['island'] = le.fit_transform(X['island'].astype(str))
+
+        # Encode target
+        y_encoded = le.fit_transform(y)
+        target_classes = le.classes_
+
+        # Train-test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+        )
+
+        # Train classifier
+        model = LogisticRegression(max_iter=1000)
+        model.fit(X_train, y_train)
+
+        # Accuracy
+        accuracy = model.score(X_test, y_test)
+
+        # Select a query instance
+        instance_index = random.randint(0, len(X_test) - 1)
+        query_instance = X_test.iloc[instance_index:instance_index + 1]
+        original_prediction = model.predict(query_instance)[0]
+        original_class = target_classes[original_prediction]
+
+        # Set desired class if not set already
+        if desired_class is None:
+            desired_class = [cls for cls in target_classes if cls != original_class][0]
+
+        desired_class_encoded = list(target_classes).index(desired_class)
+
+        # Generate counterfactual explanation by modifying each feature
+        counterfactuals = []
+
+        for feature in selected_features:
+            modified_instance = query_instance.copy()
+            original_value = modified_instance[feature].values[0]
+
+            # Try a range of values for numeric features
+            if np.issubdtype(X[feature].dtype, np.number):
+                min_val = X[feature].min()
+                max_val = X[feature].max()
+                step = (max_val - min_val) / 10.0
+                for i in range(11):
+                    trial_val = min_val + i * step
+                    modified_instance[feature] = trial_val
+                    pred = model.predict(modified_instance)[0]
+                    if pred == desired_class_encoded:
+                        counterfactuals.append({
+                            'Feature Changed': feature,
+                            'Original Value': round(original_value, 2),
+                            'New Value': round(trial_val, 2)
+                        })
+                        break
+            else:
+                unique_vals = X[feature].unique()
+                for val in unique_vals:
+                    if val != original_value:
+                        modified_instance[feature] = val
+                        pred = model.predict(modified_instance)[0]
+                        if pred == desired_class_encoded:
+                            counterfactuals.append({
+                                'Feature Changed': feature,
+                                'Original Value': original_value,
+                                'New Value': val
+                            })
+                            break
+
+        # Display query instance in readable format
+        query_display = query_instance.iloc[0].to_dict()
+
+        counterfactual_df = pd.DataFrame(counterfactuals)
+        counterfactual_table = counterfactual_df.to_html(
+            classes=['table', 'table-hover', 'table-striped'],
+            index=False
+        ) if not counterfactual_df.empty else "<p>No counterfactuals found.</p>"
+
+        context = {
+            'features': all_features,
+            'selected_features': selected_features,
+            'accuracy': round(accuracy * 100, 2),
+            'success': True,
+            'original_class': original_class,
+            'desired_class': desired_class,
+            'query_instance': {
+                'keys': list(query_display.keys()),
+                'values': list(query_display.values())
+            },
+            'counterfactual_table': counterfactual_table,
+            'classes': target_classes
+        }
+
+    except Exception as e:
+        context = {
+            'features': all_features if 'all_features' in locals() else [],
+            'selected_features': [],
+            'success': False,
+            'error_message': str(e),
+            'classes': []
+        }
+
+    return render(request, 'project3/counterfactual.html', context)

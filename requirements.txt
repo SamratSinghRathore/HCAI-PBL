@@ -8,3 +8,4 @@ scikit-learn
 palmerpenguins
 gosdt
 graphviz
+dice-ml
