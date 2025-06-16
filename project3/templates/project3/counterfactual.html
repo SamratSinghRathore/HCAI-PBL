@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="box">
+    <div class="header-section">
+        <div class="main-title">Counterfactual Explanations</div>
+        <div class="main-subtitle">Explore Alternative Scenarios for Penguin Classification</div>
+    </div>
+
+    <div class="main-text">
+        {% if success %}
+            <div class="info-card">
+                <h3>Model Performance</h3>
+                <p><strong>Accuracy:</strong> {{ accuracy }}%</p>
+            </div>
+
+            <div class="form-container">
+                <h3>Select Features for Counterfactuals</h3>
+                <form method="post" action="{% url 'project3:counterfactual' %}">
+                    {% csrf_token %}
+                    <div class="feature-checkboxes">
+                        {% for feature in features %}
+                        <label>
+                            <input type="checkbox" name="selected_features" value="{{ feature }}"
+                                   {% if feature in selected_features %}checked{% endif %}>
+                            {{ feature }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="form-group">
+                        <label for="desired_class">Desired Class:</label>
+                        <select name="desired_class" id="desired_class">
+                            {% for class in classes %}
+                            <option value="{{ class }}" {% if class == desired_class %}selected{% endif %}>
+                                {{ class }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit">Generate Counterfactuals</button>
+                </form>
+            </div>
+
+            <div class="query-instance-container">
+                <h3>Query Instance</h3>
+                <p><strong>Original Class:</strong> {{ original_class }}</p>
+                <p><strong>Desired Class:</strong> {{ desired_class }}</p>
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            {% for key in query_instance.keys %}
+                            <th>{{ key }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            {% for value in query_instance.values %}
+                            <td>{{ value|floatformat:2|default:'N/A' }}</td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="counterfactual-container">
+                <h3>Counterfactual Explanations</h3>
+                {{ counterfactual_table|safe }}
+            </div>
+        {% else %}
+            <div class="error-message">
+                <h3>Error</h3>
+                <p>{{ error_message }}</p>
+            </div>
+        {% endif %}
+
+        <div class="back-button-container">
+            <a href="{% url 'project3:index' %}" class="analysis-button">Back to Home</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .box {
+        width: 90%;
+        max-width: 1200px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+
+    .header-section {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .main-title {
+        font-size: 2.5rem;
+        color: #2c3e50;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .main-subtitle {
+        font-size: 1.2rem;
+        color: #666;
+    }
+
+    .info-card {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .form-container {
+        margin: 30px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .feature-checkboxes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .feature-checkboxes label {
+        display: block;
+        padding: 5px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group select {
+        padding: 10px;
+        font-size: 1rem;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+
+    .query-instance-container, .counterfactual-container {
+        margin: 30px 0;
+        overflow-x: auto;
+    }
+
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+        background-color: white;
+    }
+
+    .table th {
+        background-color: #4a90e2;
+        color: white;
+        padding: 12px;
+        text-align: left;
+    }
+
+    .table td {
+        padding: 10px;
+        border: 1px solid #ddd;
+    }
+
+    .back-button-container {
+        text-align: center;
+        margin-top: 30px;
+    }
+
+    .analysis-button {
+        display: inline-block;
+        padding: 15px 30px;
+        background-color: #4a90e2;
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 1.2rem;
+        transition: background-color 0.3s ease;
+    }
+
+    .analysis-button:hover {
+        background-color: #357abd;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .error-message {
+        color: #dc3545;
+        padding: 20px;
+        background-color: #f8d7da;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+{% endblock %}

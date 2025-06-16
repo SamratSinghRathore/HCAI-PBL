@@ -5,3 +5,7 @@ pandas
 pygobject
 seaborn
 scikit-learn
+palmerpenguins
+gosdt
+graphviz
+dice-ml
