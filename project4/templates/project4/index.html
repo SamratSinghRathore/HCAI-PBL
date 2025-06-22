@@ -4,99 +4,18 @@
 {% block content %}
 <div class="box">
     <div class="header-section">
-        <div class="main-title"> recommender systems</div>
+        <div class="main-title">MovieLens Mini Dataset Overview</div>
+        <div class="main-subtitle">First 10 Records from Each Table</div>
     </div>
 
-    <div class="main-text">
-        <div class="dataset-info">
-            <div class="info-card">
-                <h3>Dataset Overview</h3>
-                <p><strong>Total Records:</strong> {{ total_rows }}</p>
-                <p><strong>Features:</strong> {{ total_columns }}</p>
-                <p><strong>Showing:</strong> {{ displayed_rows }} records</p>
-            </div>
-            <div class="info-card">
-                <h3>Available Features</h3>
-                <ul class="features-list">
-                    {% for column in columns %}
-                    <li>{{ column }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        
+    {% for tbl in tables %}
+    <div class="info-card mb-4">
+        <h4 class="text-center mb-3">{{ tbl.name }} Table (Top 10) with Shape {{tbl.dimensions}}</h4>
         <div class="table-container">
-            <h3>Sample Data (First 10 Records)</h3>
-            {{ table|safe }}
+            {{ tbl.table|safe }}
         </div>
-
-        <div class="distributions-container">
-            <h3>Data Distributions</h3>
-            <div class="distribution-grid">
-                <div class="distribution-card">
-                    <h4>Species Distribution</h4>
-                    {{ species_table|safe }}
-                </div>
-                <div class="distribution-card">
-                    <h4>Island Distribution</h4>
-                    {{ island_table|safe }}
-                </div>
-                <div class="distribution-card">
-                    <h4>Sex Distribution</h4>
-                    {{ sex_table|safe }}
-                </div>
-                <div class="distribution-card">
-                    <h4>Year Distribution</h4>
-                    {{ year_table|safe }}
-                </div>
-            </div>
-        </div>
-
-        <div class="null-values-container">
-            <h3>Missing Values Analysis</h3>
-            <div class="null-values-card">
-                {{ null_table|safe }}
-            </div>
-        </div>
-
-    <div class="decision-tree-button-container">
-    <a href="{% url 'project3:decision_tree' %}" class="analysis-button">
-        Generate Decision Tree Analysis →
-    </a>
-    <a href="{% url 'project3:logistic_regression' %}" class="analysis-button">
-        Generate Logistic Regression Analysis →
-    </a>
-    <a href="{% url 'project3:counterfactual' %}" class="analysis-button">
-    Generate Counterfactual Analysis →
-</a>
-</div>
-
-<style>
-    .decision-tree-button-container {
-        margin: 40px 0;
-        text-align: center;
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-    }
-
-    .analysis-button {
-        display: inline-block;
-        padding: 15px 30px;
-        background-color: #4a90e2;
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-    }
-
-    .analysis-button:hover {
-        background-color: #357abd;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-</style>
     </div>
+    {% endfor %}
 </div>
 
 <style>
@@ -135,69 +54,22 @@
         color: #666;
     }
 
-    .dataset-info {
-        display: flex;
-        justify-content: space-around;
-        gap: 20px;
-        margin: 20px 0;
-        flex-wrap: wrap;
-    }
-
     .info-card {
-        flex: 1;
-        min-width: 250px;
         background-color: #f8f9fa;
         padding: 20px;
         border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
     .table-container {
-        margin-top: 30px;
         overflow-x: auto;
-    }
-
-    .distribution-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 20px;
-        margin-top: 20px;
-    }
-
-    .distribution-card {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    h3 {
-        color: #2c3e50;
-        margin-bottom: 15px;
-    }
-
-    h4 {
-        color: #2c3e50;
-        margin-bottom: 15px;
-        text-align: center;
-    }
-
-    .features-list {
-        list-style: none;
-        padding: 0;
-        columns: 2;
-    }
-
-    .features-list li {
-        padding: 4px 0;
-        color: #555;
     }
 
     .table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 1rem;
         background-color: white;
+        margin-top: 10px;
     }
 
     .table th {
@@ -212,61 +84,12 @@
         border: 1px solid #ddd;
     }
 
-    
-    .null-values-container {
-        margin: 30px 0;
-    }
-
-    .null-values-card {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        overflow-x: auto;
-    }
-
-    .null-values-card .table {
-        margin-bottom: 0;
-    }
-
-    .null-values-card th {
-        background-color: #4a90e2;
-        color: white;
-        padding: 12px;
-    }
-
-    .null-values-card td {
-        padding: 10px;
-        border: 1px solid #ddd;
-    }
-
-    .null-values-card tr:nth-child(even) {
+    .table tr:nth-child(even) {
         background-color: #ffffff;
     }
 
-    .null-values-card tr:hover {
+    .table tr:hover {
         background-color: #f2f2f2;
-    }
-
-    .decision-tree-button-container {
-        margin: 40px 0;
-        text-align: center;
-    }
-
-    .decision-tree-button {
-        display: inline-block;
-        padding: 15px 30px;
-        background-color: #4a90e2;
-        color: white;
-        text-decoration: none;
-        border-radius: 8px;
-        font-size: 1.2rem;
-        transition: background-color 0.3s ease;
-    }
-
-    .decision-tree-button:hover {
-        background-color: #357abd;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
 </style>
 {% endblock %}
