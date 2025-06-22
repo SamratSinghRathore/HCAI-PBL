@@ -4,22 +4,32 @@
 {% block content %}
 <div class="box">
     <div class="header-section">
-        <div class="main-title">MovieLens Mini Dataset Overview</div>
-        <div class="main-subtitle">First 10 Records from Each Table</div>
+        <div class="main-title">Recommender Systems</div>
     </div>
 
-    {% for tbl in tables %}
-    <div class="info-card mb-4">
-        <h4 class="text-center mb-3">{{ tbl.name }} Table (Top 10) with Shape {{tbl.dimensions}}</h4>
+    <div class="main-text">
         <div class="table-container">
-            {{ tbl.table|safe }}
+            <h3>MovieLens Dataset Samples (First 20 Rows)</h3>
+            <div class="csv-tables-grid">
+                {% for table in tables %}
+                <div class="csv-table-card">
+                    <h4>{{ table.name }}</h4>
+                    {{ table.table|safe }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="recommender-section">
+            <h3>Try our Movie Recommender</h3>
+            <p>Get personalized movie recommendations by rating a few movies. Our system uses an active learning approach to understand your preferences.</p>
+            <a href="{% url 'project4:cold_start' %}" class="btn btn-primary">Try Movie Recommender</a>
         </div>
     </div>
-    {% endfor %}
 </div>
 
 <style>
-    .box {
+ .box {
         width: 90%;
         max-width: 1200px;
         margin: 40px auto;
@@ -53,43 +63,56 @@
         font-size: 1.2rem;
         color: #666;
     }
-
-    .info-card {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-
-    .table-container {
-        overflow-x: auto;
-    }
-
-    .table {
-        width: 100%;
-        border-collapse: collapse;
-        background-color: white;
-        margin-top: 10px;
-    }
-
-    .table th {
-        background-color: #4a90e2;
-        color: white;
-        padding: 12px;
-        text-align: left;
-    }
-
-    .table td {
-        padding: 10px;
-        border: 1px solid #ddd;
-    }
-
-    .table tr:nth-child(even) {
-        background-color: #ffffff;
-    }
-
-    .table tr:hover {
-        background-color: #f2f2f2;
-    }
+.table-container {
+    margin-top: 30px;
+    overflow-x: auto;
+}
+.csv-tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+    margin-top: 20px;
+}
+.csv-table-card {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+.csv-table-card h4 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    background-color: white;
+}
+.table th {
+    background-color: #4a90e2;
+    color: white;
+    padding: 12px;
+    text-align: left;
+}
+.table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+.recommender-section {
+    margin-top: 40px;
+    padding: 25px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+.recommender-section .btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 18px;
+}
 </style>
 {% endblock %}
