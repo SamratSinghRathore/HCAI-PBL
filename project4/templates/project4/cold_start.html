@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="box">
+    <div class="header-section">
+        <div class="main-title">Cold-Start Movie Recommender</div>
+    </div>
+    
+    <div class="main-text">
+        <div class="welcome-section section welcome-box">
+            <h2>Welcome to the Movie Recommender</h2>
+            <p>Help us learn your taste by rating movies you've seen. We'll use your ratings to recommend movies you might enjoy.</p>
+            <button id="start-rating" class="btn btn-primary">Start Rating Movies</button>
+        </div>
+        
+        <div class="rating-interface section rating-box hidden">
+            <h2>Rate Movies You've Seen</h2>
+            <p>Rate at least 5 movies to get personalized recommendations.</p>
+            <p class="text-muted">Don't worry if you haven't seen all of these movies - just skip ones you haven't watched.</p>
+
+            <div class="progress mb-4">
+                <div id="rating-progress" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0/5</div>
+            </div>
+
+            <div class="scrollable-content">
+                <div id="movies-container" class="movie-cards">
+                    <!-- Movie cards will be inserted here -->
+                </div>
+            </div>
+
+            <div class="button-container">
+                <button id="load-more-movies" class="btn btn-primary">Load More Movies</button>
+                {% if is_study %}
+                <button id="submit-ratings-continue" class="btn btn-success hidden">Get Recommendations and Continue</button>
+                {% endif %}
+            </div>
+            
+            <!-- Loading spinner -->
+            <div id="loader" class="loader hidden">
+                <div class="spinner"></div>
+                <p>Loading recommendations...</p>
+            </div>
+        </div>
+
+        <div id="no-recommendations" class="section recommendations-box">
+            <p>Rate at least 5 movies to see recommendations here.</p>
+        </div>
+        
+        <div id="recommendations-container" class="section recommendations-box hidden">
+            <h2>Your Recommendations</h2>
+            <div id="recommendations" class="movie-cards"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Inside <template id="movie-card-template"> -->
+<template id="movie-card-template">
+    <div class="movie-card">
+        <h3 class="movie-title"></h3>
+        <p class="movie-genres badge bg-secondary"></p>
+        {% if is_study and group == 'experimental' %}
+        <div class="rating-explanation text-muted"></div>
+        {% endif %}
+        <div class="rating-container">
+            <div class="rating-stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <div class="rating-tooltip hidden">
+                <span class="avg-rating">Current average: <strong></strong></span>
+                <span class="user-preview">Your rating: <strong></strong></span>
+            </div>
+        </div>
+        <div class="user-rating">Your rating: <span class="rating-value">Not rated</span></div>
+    </div>
+</template>
+
+<style>
+.box {
+    width: 90%;
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.hidden {
+    display: none;
+}
+.movie-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+.movie-card {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+.rating-container {
+    position: relative;
+}
+.loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    background: rgba(255, 255, 255, 0.8);
+    padding: 20px;
+    border-radius: 8px;
+    z-index: 1000;
+}
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.rating-stars .star {
+    font-size: 24px;
+    color: #ddd;
+    cursor: pointer;
+}
+.rating-stars .star.active {
+    color: #f1c40f;
+}
+.button-container .btn-success {
+    margin-left: 10px;
+}
+.recommendations-box {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+#recommendations-container {
+    width: 100%;
+    max-width: none;
+    padding: 30px;
+    min-height: 400px;
+}
+#recommendations .movie-card {
+    min-height: 150px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+#recommendations .movie-title {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+}
+#recommendations .movie-genres {
+    font-size: 0.9em;
+}
+.scrollable-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+.movie-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    min-height: 100%;
+}
+</style>
+
+<script>
+const is_study = {{ is_study|yesno:"true,false" }};
+const initialMovies = {{ initial_movies|safe }};
+let userRatings = {};
+let currentMovies = [];
+const RATINGS_NEEDED = 5;
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('start-rating').addEventListener('click', function() {
+        document.querySelector('.welcome-section').classList.add('hidden');
+        document.querySelector('.rating-interface').classList.remove('hidden');
+    });
+    
+    document.getElementById('load-more-movies').addEventListener('click', loadMoreMovies);
+    {% if is_study %}
+    document.getElementById('submit-ratings-continue').addEventListener('click', function() {
+        getRecommendationsAndContinue();
+    });
+    {% endif %}
+    
+    currentMovies = initialMovies;
+    renderMovies(currentMovies);
+});
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function renderMovies(movies) {
+    const container = document.getElementById('movies-container');
+    container.innerHTML = '';
+    const template = document.getElementById('movie-card-template');
+    
+    movies.forEach(movie => {
+        const card = template.content.cloneNode(true);
+        card.querySelector('.movie-card').dataset.movieId = movie.id;
+        card.querySelector('.movie-title').textContent = movie.title;
+        card.querySelector('.movie-genres').textContent = movie.genres;
+        {% if is_study and group == 'experimental' %}
+        if (movie.explanation) {
+            card.querySelector('.rating-explanation').textContent = movie.explanation;
+        } else {
+            console.log('No explanation for movie:', movie.id);
+        }
+        {% endif %}
+        
+        const stars = card.querySelectorAll('.star');
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                const rating = parseInt(star.dataset.value);
+                rateMovie(movie.id, rating);
+            });
+        });
+        
+        container.appendChild(card);
+    });
+}
+
+function updateInterface() {
+    const ratedCount = Object.keys(userRatings).length;
+    const progressBar = document.getElementById('rating-progress');
+    const progressPercent = Math.min(100, (ratedCount / RATINGS_NEEDED) * 100);
+    
+    progressBar.style.width = progressPercent + '%';
+    progressBar.textContent = ratedCount + '/' + RATINGS_NEEDED;
+    
+    if (ratedCount >= RATINGS_NEEDED) {
+        document.getElementById('no-recommendations').classList.add('hidden');
+        document.getElementById('recommendations-container').classList.remove('hidden');
+        if (!is_study) {
+            document.getElementById('submit-ratings-continue')?.classList.add('hidden');
+            getRecommendations();
+        } else {
+            document.getElementById('submit-ratings-continue')?.classList.remove('hidden');
+        }
+    } else {
+        if (is_study) {
+            document.getElementById('submit-ratings-continue')?.classList.add('hidden');
+        }
+    }
+}
+
+function rateMovie(movieId, rating) {
+    userRatings[movieId] = rating;
+    updateInterface();
+    
+    const movieCard = document.querySelector(`.movie-card[data-movie-id="${movieId}"]`);
+    const stars = movieCard.querySelectorAll('.star');
+    stars.forEach(star => {
+        if (parseInt(star.dataset.value) <= rating) {
+            star.classList.add('active');
+        } else {
+            star.classList.remove('active');
+        }
+    });
+    
+    movieCard.querySelector('.rating-value').textContent = rating + " ★";
+}
+
+function getRecommendations() {
+    const loader = document.getElementById('loader');
+    loader.classList.remove('hidden');
+    
+    fetch('/project4/submit-ratings/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ratings: userRatings
+        })
+    })
+    .then(response => {
+        loader.classList.add('hidden');
+        if (!response.ok) {
+            throw new Error('Failed to fetch recommendations');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.recommendations) {
+            showRecommendations(data.recommendations);
+        }
+    })
+    .catch(error => {
+        loader.classList.add('hidden');
+        console.error('Error getting recommendations:', error);
+        alert('An error occurred while fetching recommendations.');
+    });
+}
+
+function getRecommendationsAndContinue() {
+    const loader = document.getElementById('loader');
+    loader.classList.remove('hidden');
+    
+    fetch('/project4/submit-ratings/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ratings: userRatings
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Submit ratings response:', data);
+        if (data.recommendations) {
+            showRecommendations(data.recommendations);
+            return fetch('/project4/store-recommendations/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    recommendations: data.recommendations
+                })
+            });
+        } else {
+            throw new Error('No recommendations received');
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error storing recommendations! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Store recommendations response:', data);
+        window.location.href = '/project4/survey/';
+    })
+    .catch(error => {
+        loader.classList.add('hidden');
+        console.error('Error in getRecommendationsAndContinue:', error);
+        alert('Failed to load recommendations. Check console for details.');
+    })
+    .finally(() => {
+        loader.classList.add('hidden'); // Ensure loader hides on all outcomes
+    });
+}
+
+function showRecommendations(recommendations) {
+    const container = document.getElementById('recommendations');
+    container.innerHTML = '';
+    const template = document.getElementById('movie-card-template');
+    
+    recommendations.forEach(movie => {
+        const card = template.content.cloneNode(true);
+        card.querySelector('.movie-card').dataset.movieId = movie.id;
+        card.querySelector('.movie-title').textContent = movie.title;
+        card.querySelector('.movie-genres').textContent = movie.genres;
+        {% if is_study and group == 'experimental' %}
+        card.querySelector('.rating-explanation').textContent = '';
+        {% endif %}
+        card.querySelector('.rating-container').remove();
+        card.querySelector('.user-rating').remove();
+        container.appendChild(card);
+    });
+}
+
+function loadMoreMovies() {
+    const loader = document.getElementById('loader');
+    loader.classList.remove('hidden'); // Show loader
+
+    fetch('/project4/next-questions/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            rated_movies: Object.keys(userRatings).map(id => parseInt(id)) // Ensure IDs are integers
+        })
+    })
+    .then(response => {
+        loader.classList.add('hidden'); // Hide loader
+        if (!response.ok) {
+            throw new Error('Failed to fetch more movies');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.movies && data.movies.length > 0) {
+            currentMovies = currentMovies.concat(data.movies);
+            renderMovies(currentMovies);
+        } else {
+            alert('No more movies available to load.');
+        }
+    })
+    .catch(error => {
+        loader.classList.add('hidden'); // Hide loader on error
+        console.error('Error loading more movies:', error);
+        alert('An error occurred while loading more movies.');
+    });
+}
+</script>
+{% endblock %}

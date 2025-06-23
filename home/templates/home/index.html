@@ -39,7 +39,6 @@
         <div class="button-container">
             {% for project in projects %}
                 <form action="{% url project.url_name %}" method="get" style="margin-bottom: 10px;">
-                    {% csrf_token %}
                     <button type="submit">{{ project.name }}</button>
                 </form>
             {% endfor %}
