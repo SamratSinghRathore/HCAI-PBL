@@ -69,8 +69,8 @@ def cold_start(request, group=None):
                 'id': int(movie['movieId']),
                 'title': movie['title'],
                 'genres': movie['genres'],
-                'avg_rating': float(movie['avg_rating']),
-                'rating_count': int(movie['rating_count']),
+                'avg_rating': float(movie['avg_rating']),  # Include average rating
+                'rating_count': int(movie['rating_count']),  # Include rating count
             }
             if group == 'experimental':
                 movie_data['explanation'] = (
@@ -204,8 +204,8 @@ def next_questions(request):
                         'id': int(movie['movieId']),
                         'title': movie['title'],
                         'genres': movie['genres'],
-                        'avg_rating': float(movie['avg_rating']),
-                        'rating_count': int(movie['rating_count']),
+                        'avg_rating': float(movie['avg_rating']),  # Include average rating
+                        'rating_count': int(movie['rating_count']),  # Include rating count
                     }
                     if request.session.get('group') == 'experimental':
                         movie_data['explanation'] = (

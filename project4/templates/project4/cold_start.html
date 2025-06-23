@@ -71,8 +71,9 @@
                 <span class="star" data-value="5">★</span>
             </div>
             <div class="rating-tooltip hidden">
-                <span class="avg-rating">Current average: <strong></strong></span>
-                <span class="user-preview">Your rating: <strong></strong></span>
+                <span class="avg-rating">Current average: <strong></strong>🌟</span>
+                <span class="rating-count"> (Already rated by <strong></strong> users)</span>
+                <!-- <span class="user-preview">Your rating: <strong></strong></span> -->
             </div>
         </div>
         <div class="user-rating">Your rating: <span class="rating-value">Not rated</span></div>
@@ -101,9 +102,78 @@
     padding: 15px;
     background: #f8f9fa;
     border-radius: 8px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
 }
 .rating-container {
     position: relative;
+    overflow: visible;
+}
+.rating-tooltip {
+    position: absolute;
+    top: -30px;
+    left: 0;
+    background: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.rating-stars .star {
+    font-size: 24px;
+    color: #ddd;
+    cursor: pointer;
+}
+.rating-stars .star.active {
+    color: #f1c40f;
+}
+.rating-stars .star:hover + .rating-tooltip,
+.rating-stars .star:hover ~ .rating-tooltip {
+    display: block;
+}
+.button-container .btn-success {
+    margin-left: 10px;
+}
+.recommendations-box {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+#recommendations-container {
+    width: 100%;
+    max-width: none;
+    padding: 30px;
+    min-height: 400px;
+}
+#recommendations .movie-card {
+    min-height: 150px;
+    padding: 20px;
+    background: #ffffff;
+    border: 1px solid #ddd;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+#recommendations .movie-title {
+    font-size: 1.2em;
+    margin-bottom: 10px;
+}
+#recommendations .movie-genres {
+    font-size: 0.9em;
+}
+.scrollable-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+.movie-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    min-height: 100%;
 }
 .loader {
     position: fixed;
@@ -128,54 +198,6 @@
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-.rating-stars .star {
-    font-size: 24px;
-    color: #ddd;
-    cursor: pointer;
-}
-.rating-stars .star.active {
-    color: #f1c40f;
-}
-.button-container .btn-success {
-    margin-left: 10px;
-}
-.recommendations-box {
-    margin-top: 30px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 8px;
-}
-#recommendations-container {
-    width: 100%;
-    max-width: none;
-    padding: 30px;
-    min-height: 400px;
-}
-#recommendations .movie-card {
-    min-height: 150px;
-    padding: 20px;
-    background: #ffffff;
-    border: 1px solid #ddd;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-#recommendations .movie-title {
-    font-size: 1.2em;
-    margin-bottom: 10px;
-}
-#recommendations .movie-genres {
-    font-size: 0.9em;
-}
-.scrollable-content {
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 10px;
-}
-.movie-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-    min-height: 100%;
 }
 </style>
 
@@ -237,10 +259,20 @@ function renderMovies(movies) {
         {% endif %}
         
         const stars = card.querySelectorAll('.star');
+        const tooltip = card.querySelector('.rating-tooltip');
+        tooltip.querySelector('.avg-rating strong').textContent = movie.avg_rating.toFixed(1);
+        tooltip.querySelector('.rating-count strong').textContent = movie.rating_count;
+        
         stars.forEach(star => {
             star.addEventListener('click', () => {
                 const rating = parseInt(star.dataset.value);
                 rateMovie(movie.id, rating);
+            });
+            star.addEventListener('mouseover', () => {
+                tooltip.classList.remove('hidden');
+            });
+            star.addEventListener('mouseout', () => {
+                tooltip.classList.add('hidden');
             });
         });
         
