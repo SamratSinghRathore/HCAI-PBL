@@ -22,7 +22,9 @@
 
             <div class="button-container">
                 <button id="load-more-movies" class="btn btn-primary">Load More Movies</button>
+                {% if is_study %}
                 <button id="submit-ratings-continue" class="btn btn-success hidden">Get Recommendations and Continue</button>
+                {% endif %}
             </div>
         </div>
 
@@ -239,6 +241,7 @@ const initialMovies = {{ initial_movies|safe }};
 let userRatings = {}; // Will store user's ratings
 let currentMovies = []; 
 const RATINGS_NEEDED = 5;
+const is_study = {{ is_study|yesno:"true,false" }};
 
 document.addEventListener('DOMContentLoaded', function() {
     // Set up event listeners
@@ -325,7 +328,6 @@ function rateMovie(movieId, rating) {
     userRatings[movieId] = rating;
     updateInterface();
     
-    // Highlight stars for the rated movie
     const movieCard = document.querySelector(`.movie-card[data-movie-id="${movieId}"]`);
     const stars = movieCard.querySelectorAll('.star');
     stars.forEach(star => {
@@ -338,9 +340,8 @@ function rateMovie(movieId, rating) {
     
     movieCard.querySelector('.rating-value').textContent = rating + " ★";
     
-    // Check if we have enough ratings to update recommendations
     const ratedCount = Object.keys(userRatings).length;
-    if (ratedCount >= RATINGS_NEEDED) {
+    if (ratedCount >= RATINGS_NEEDED && !is_study) {
         getRecommendations();
     }
 }
@@ -353,14 +354,16 @@ function updateInterface() {
     progressBar.style.width = progressPercent + '%';
     progressBar.textContent = ratedCount + '/' + RATINGS_NEEDED;
     
-    // Show/hide elements based on rating count
-    const submitButton = document.getElementById('submit-ratings-continue');
     if (ratedCount >= RATINGS_NEEDED) {
         document.getElementById('no-recommendations').classList.add('hidden');
         document.getElementById('recommendations-container').classList.remove('hidden');
-        submitButton.classList.remove('hidden');
+        {% if is_study %}
+        document.getElementById('submit-ratings-continue').classList.remove('hidden');
+        {% endif %}
     } else {
-        submitButton.classList.add('hidden');
+        {% if is_study %}
+        document.getElementById('submit-ratings-continue').classList.add('hidden');
+        {% endif %}
     }
 }
 

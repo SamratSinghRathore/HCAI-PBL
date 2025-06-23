@@ -5,7 +5,8 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 from django.http import JsonResponse
-import os 
+import os
+from sklearn.decomposition import NMF
 
 def index(request):
     """Home page view showing dataset information"""
@@ -104,87 +105,157 @@ def cold_start(request, group='experimental'):
         'is_study': is_study  # Pass flag to template
     })
 
-def submit_ratings(request):
-    """Process submitted ratings and return personalized recommendations"""
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        user_ratings = data.get('ratings', {})
+# def submit_ratings(request):
+#     """Process submitted ratings and return personalized recommendations"""
+#     if request.method == 'POST':
+#         data = json.loads(request.body)
+#         user_ratings = data.get('ratings', {})
         
-        # Convert to dataframe format
-        user_df = pd.DataFrame([
-            {'userId': -1, 'movieId': int(movie_id), 'rating': float(rating)}
-            for movie_id, rating in user_ratings.items()
-        ])
+#         # Convert to dataframe format
+#         user_df = pd.DataFrame([
+#             {'userId': -1, 'movieId': int(movie_id), 'rating': float(rating)}
+#             for movie_id, rating in user_ratings.items()
+#         ])
         
-        # Load existing data
-        movies_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'movies.csv'))
-        ratings_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'ratings.csv'))
+#         # Load existing data
+#         movies_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'movies.csv'))
+#         ratings_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'ratings.csv'))
         
-        # Combined ratings (add new user)
-        combined_ratings = pd.concat([ratings_df, user_df])
+#         # Combined ratings (add new user)
+#         combined_ratings = pd.concat([ratings_df, user_df])
         
-        # Create a user-item matrix
-        user_item_matrix = combined_ratings.pivot_table(
-            index='userId', columns='movieId', values='rating'
-        )
+#         # Create a user-item matrix
+#         user_item_matrix = combined_ratings.pivot_table(
+#             index='userId', columns='movieId', values='rating'
+#         )
         
-        # Fill missing values with 0
-        user_item_matrix = user_item_matrix.fillna(0)
+#         # Fill missing values with 0
+#         user_item_matrix = user_item_matrix.fillna(0)
         
-        # Calculate user similarity (cosine similarity)
-        user_similarity = cosine_similarity(user_item_matrix)
+#         # Calculate user similarity (cosine similarity)
+#         user_similarity = cosine_similarity(user_item_matrix)
         
-        # Get similar users to our new user (userId = -1)
-        new_user_idx = user_item_matrix.index.get_loc(-1)
-        similar_users = [(idx, user_similarity[new_user_idx, idx]) 
-                         for idx in range(len(user_item_matrix)) 
-                         if idx != new_user_idx]
+#         # Get similar users to our new user (userId = -1)
+#         new_user_idx = user_item_matrix.index.get_loc(-1)
+#         similar_users = [(idx, user_similarity[new_user_idx, idx]) 
+#                          for idx in range(len(user_item_matrix)) 
+#                          if idx != new_user_idx]
         
-        # Sort by similarity (descending)
-        similar_users.sort(key=lambda x: x[1], reverse=True)
+#         # Sort by similarity (descending)
+#         similar_users.sort(key=lambda x: x[1], reverse=True)
         
-        # Get top 10 similar users
-        top_similar_users = [idx for idx, _ in similar_users[:10]]
+#         # Get top 10 similar users
+#         top_similar_users = [idx for idx, _ in similar_users[:10]]
         
-        # Get user IDs
-        top_similar_user_ids = user_item_matrix.iloc[top_similar_users].index.tolist()
+#         # Get user IDs
+#         top_similar_user_ids = user_item_matrix.iloc[top_similar_users].index.tolist()
         
-        # Get movies rated highly by similar users but not rated by our user
-        rated_movies = set(int(movie_id) for movie_id in user_ratings.keys())
-        similar_user_ratings = ratings_df[
-            (ratings_df['userId'].isin(top_similar_user_ids)) & 
-            (ratings_df['rating'] >= 4.0) & 
-            (~ratings_df['movieId'].isin(rated_movies))
-        ]
+#         # Get movies rated highly by similar users but not rated by our user
+#         rated_movies = set(int(movie_id) for movie_id in user_ratings.keys())
+#         similar_user_ratings = ratings_df[
+#             (ratings_df['userId'].isin(top_similar_user_ids)) & 
+#             (ratings_df['rating'] >= 4.0) & 
+#             (~ratings_df['movieId'].isin(rated_movies))
+#         ]
         
-        # Get recommended movie count by similar users
-        movie_rec_count = similar_user_ratings.groupby('movieId').size().reset_index(name='rec_count')
+#         # Get recommended movie count by similar users
+#         movie_rec_count = similar_user_ratings.groupby('movieId').size().reset_index(name='rec_count')
         
-        # Merge with movie info
-        recommended_movies = movie_rec_count.merge(movies_df, on='movieId')
+#         # Merge with movie info
+#         recommended_movies = movie_rec_count.merge(movies_df, on='movieId')
         
-        # Sort by recommendation count (descending)
-        recommended_movies = recommended_movies.sort_values('rec_count', ascending=False)
+#         # Sort by recommendation count (descending)
+#         recommended_movies = recommended_movies.sort_values('rec_count', ascending=False)
         
-        # Get top 10 recommendations
-        top_recommendations = recommended_movies.head(10).to_dict('records')
+#         # Get top 10 recommendations
+#         top_recommendations = recommended_movies.head(10).to_dict('records')
         
-        # Add explanations
-        for movie in top_recommendations:
-            similar_users_who_liked = similar_user_ratings[
-                similar_user_ratings['movieId'] == movie['movieId']
-            ]['userId'].nunique()
-            movie['explanation'] = (
-                f"{similar_users_who_liked} users with similar taste to yours rated this "
-                f"{movie['genres'].replace('|', '/')} movie highly"
-            )
+#         # Add explanations
+#         for movie in top_recommendations:
+#             similar_users_who_liked = similar_user_ratings[
+#                 similar_user_ratings['movieId'] == movie['movieId']
+#             ]['userId'].nunique()
+#             movie['explanation'] = (
+#                 f"{similar_users_who_liked} users with similar taste to yours rated this "
+#                 f"{movie['genres'].replace('|', '/')} movie highly"
+#             )
         
-        return JsonResponse({
-            'recommendations': top_recommendations,
-            'similar_user_count': len(top_similar_user_ids)
-        })
+#         return JsonResponse({
+#             'recommendations': top_recommendations,
+#             'similar_user_count': len(top_similar_user_ids)
+#         })
     
-    return JsonResponse({'error': 'Invalid request method'})
+#     return JsonResponse({'error': 'Invalid request method'})
+
+
+def submit_ratings(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_ratings = data.get('ratings', {})
+            
+            # Load MovieLens data
+            ratings_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "ratings.csv"))
+            movies_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "movies.csv"))
+            
+            # Create user-item matrix
+            user_item_matrix = ratings_df.pivot_table(index='userId', columns='movieId', values='rating').fillna(0)
+            
+            # Get movie IDs present in ratings
+            rated_movie_ids = user_item_matrix.columns.tolist()
+            
+            # Filter movies_df to only include movies with ratings
+            movies_df = movies_df[movies_df['movieId'].isin(rated_movie_ids)]
+            
+            # Train NMF
+            model = NMF(n_components=20, init='random', random_state=42, alpha_W=0.01, alpha_H=0.01)
+            U = model.fit_transform(user_item_matrix)
+            V = model.components_
+            
+            # New user vector
+            user_rated_ids = [int(mid) for mid in user_ratings.keys()]
+            ratings = [float(user_ratings[mid]) for mid in user_ratings.keys()]
+            
+            # Map rated movie IDs to indices in V
+            V_indices = [user_item_matrix.columns.get_loc(mid) for mid in user_rated_ids if mid in user_item_matrix.columns]
+            V_j = V[:, V_indices]
+            ratings = [r for mid, r in zip(user_rated_ids, ratings) if mid in user_item_matrix.columns]
+            
+            if not V_indices:
+                return JsonResponse({'error': 'No valid movie IDs rated'}, status=400)
+            
+            # Solve for U_i
+            lambda_reg = 0.01
+            U_i = np.linalg.solve(V_j @ V_j.T + lambda_reg * np.eye(20), V_j @ np.array(ratings))
+            
+            # Predict ratings for all movies
+            predictions = U_i @ V
+            
+            # Create movie_scores DataFrame
+            movie_scores = pd.DataFrame({
+                'movieId': user_item_matrix.columns,
+                'score': predictions
+            }).merge(movies_df[['movieId', 'title', 'genres']], on='movieId', how='left')
+            
+            # Exclude rated movies
+            movie_scores = movie_scores[~movie_scores['movieId'].isin(user_rated_ids)]
+            
+            # Handle any NaN values (if merge misses some movies)
+            movie_scores = movie_scores.dropna()
+            
+            # Get top 10 recommendations
+            top_recommendations = movie_scores.sort_values(by='score', ascending=False).head(10)
+            
+            recommendations = [
+                {'id': int(row['movieId']), 'title': row['title'], 'genres': row['genres']}
+                for _, row in top_recommendations.iterrows()
+            ]
+            
+            return JsonResponse({'recommendations': recommendations})
+        except Exception as e:
+            print(f"Error in submit_ratings: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 def next_questions(request):
     """Determine next best movies to rate based on current ratings"""
