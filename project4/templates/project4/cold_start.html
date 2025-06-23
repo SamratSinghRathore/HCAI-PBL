@@ -80,7 +80,6 @@
 </template>
 
 <style>
-/* Existing styles */
 .box {
     width: 90%;
     max-width: 1200px;
@@ -106,7 +105,6 @@
 .rating-container {
     position: relative;
 }
-/* Add to <style> section */
 .loader {
     position: fixed;
     top: 50%;
@@ -148,15 +146,14 @@
     background: #f8f9fa;
     border-radius: 8px;
 }
-/* Updated recommendations section */
 #recommendations-container {
     width: 100%;
     max-width: none;
     padding: 30px;
-    min-height: 400px; /* Ensure it takes more vertical space */
+    min-height: 400px;
 }
 #recommendations .movie-card {
-    min-height: 150px; /* Larger cards for visibility */
+    min-height: 150px;
     padding: 20px;
     background: #ffffff;
     border: 1px solid #ddd;
@@ -169,41 +166,16 @@
 #recommendations .movie-genres {
     font-size: 0.9em;
 }
-/* Loader styles */
-.loader {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    background: rgba(255, 255, 255, 0.8);
-    padding: 20px;
-    border-radius: 8px;
-    z-index: 1000;
-}
 .scrollable-content {
-    max-height: 400px; /* Fixed height for scrolling */
-    overflow-y: auto; /* Enable vertical scrolling */
-    padding-right: 10px; /* Prevent scrollbar overlap */
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
 }
 .movie-cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 20px;
-    min-height: 100%; /* Ensure content fills container */
-}
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 10px;
-}
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    min-height: 100%;
 }
 </style>
 
@@ -287,13 +259,16 @@ function updateInterface() {
     if (ratedCount >= RATINGS_NEEDED) {
         document.getElementById('no-recommendations').classList.add('hidden');
         document.getElementById('recommendations-container').classList.remove('hidden');
-        {% if is_study %}
-        document.getElementById('submit-ratings-continue').classList.remove('hidden');
-        {% endif %}
+        if (!is_study) {
+            document.getElementById('submit-ratings-continue')?.classList.add('hidden');
+            getRecommendations();
+        } else {
+            document.getElementById('submit-ratings-continue')?.classList.remove('hidden');
+        }
     } else {
-        {% if is_study %}
-        document.getElementById('submit-ratings-continue').classList.add('hidden');
-        {% endif %}
+        if (is_study) {
+            document.getElementById('submit-ratings-continue')?.classList.add('hidden');
+        }
     }
 }
 
@@ -312,11 +287,6 @@ function rateMovie(movieId, rating) {
     });
     
     movieCard.querySelector('.rating-value').textContent = rating + " ★";
-    
-    const ratedCount = Object.keys(userRatings).length;
-    if (ratedCount >= RATINGS_NEEDED && !is_study) {
-        getRecommendations();
-    }
 }
 
 function getRecommendations() {
@@ -368,12 +338,12 @@ function getRecommendationsAndContinue() {
     })
     .then(response => {
         if (!response.ok) {
-            loader.classList.add('hidden');
-            throw new Error('Failed to fetch recommendations');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
+        console.log('Submit ratings response:', data);
         if (data.recommendations) {
             showRecommendations(data.recommendations);
             return fetch('/project4/store-recommendations/', {
@@ -387,24 +357,26 @@ function getRecommendationsAndContinue() {
                 })
             });
         } else {
-            loader.classList.add('hidden');
             throw new Error('No recommendations received');
         }
     })
     .then(response => {
-        loader.classList.add('hidden');
         if (!response.ok) {
-            throw new Error('Failed to store recommendations');
+            throw new Error(`HTTP error storing recommendations! status: ${response.status}`);
         }
         return response.json();
     })
-    .then(() => {
+    .then(data => {
+        console.log('Store recommendations response:', data);
         window.location.href = '/project4/survey/';
     })
     .catch(error => {
         loader.classList.add('hidden');
         console.error('Error in getRecommendationsAndContinue:', error);
-        alert('An error occurred. Please try again.');
+        alert('Failed to load recommendations. Check console for details.');
+    })
+    .finally(() => {
+        loader.classList.add('hidden'); // Ensure loader hides on all outcomes
     });
 }
 
