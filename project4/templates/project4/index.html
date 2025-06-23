@@ -25,6 +25,11 @@
             <p>Get personalized movie recommendations by rating a few movies. Our system uses an active learning approach to understand your preferences.</p>
             <a href="{% url 'project4:cold_start' %}" class="btn btn-primary">Try Movie Recommender</a>
         </div>
+        <div class="study-link">
+            <h3>Join Our User Study</h3>
+            <p>Participate in our research to improve movie recommendations.</p>
+            <a href="{% url 'project4:study_landing' %}" class="btn btn-primary">Go to Study</a>
+        </div>
     </div>
 </div>
 
@@ -110,6 +115,21 @@
     text-align: center;
 }
 .recommender-section .btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 18px;
+}
+</style>
+
+.study-link {
+    margin-top: 40px;
+    padding: 25px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.study-link .btn {
     margin-top: 15px;
     padding: 10px 20px;
     font-size: 18px;

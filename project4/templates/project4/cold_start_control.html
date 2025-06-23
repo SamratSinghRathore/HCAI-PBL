@@ -4,7 +4,7 @@
 {% block content %}
 <div class="cold-start-container">
     <div class="two-column-layout">
-
+        <!-- Inside cold_start.html, within the rating-interface div -->
         <div class="rating-interface" class="section rating-box">
             <h2>Rate Movies You've Seen</h2>
             <p>Rate at least 5 movies to get personalized recommendations.</p>
@@ -42,7 +42,7 @@
     <div class="movie-card">
         <h3 class="movie-title"></h3>
         <p class="movie-genres badge bg-secondary"></p>
-        <div class="rating-explanation text-muted"></div>
+        <!-- Explanation div removed -->
         <div class="rating-container">
             <div class="rating-stars">
                 <span class="star" data-value="1">★</span>
@@ -160,13 +160,6 @@
     color: #ffc107;
 }
 
-.rating-explanation, .recommendation-explanation {
-    font-style: italic;
-    margin: 10px 0;
-    min-height: 40px;
-    font-size: 0.9rem;
-}
-
 .user-rating {
     font-weight: bold;
     margin-top: 10px;
@@ -265,7 +258,6 @@ function renderMovies(movies) {
         const card = template.content.cloneNode(true);
         card.querySelector('.movie-title').textContent = movie.title;
         card.querySelector('.movie-genres').textContent = movie.genres;
-        card.querySelector('.rating-explanation').textContent = movie.explanation;
         
         const movieCard = card.querySelector('.movie-card');
         movieCard.dataset.movieId = movie.id;
@@ -419,6 +411,8 @@ function getRecommendationsAndContinue() {
         console.error('Error getting recommendations:', error);
     });
 }
+
+
 
 function loadMoreMovies() {
     const loadBtn = document.getElementById('load-more-movies');
