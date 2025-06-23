@@ -5,14 +5,15 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
 from django.http import JsonResponse
+import os 
 
 def index(request):
     """Home page view showing dataset information"""
     csv_files = [
-        ('Links',   r'project4\ml-latest-small\links.csv'),
-        ('Movies',  r'project4\ml-latest-small\movies.csv'),
-        ('Ratings', r'project4\ml-latest-small\ratings.csv'),
-        ('Tags',    r'project4\ml-latest-small\tags.csv'),
+        ('Links',   os.path.join("project4", "ml-latest-small", "links.csv")),
+        ('Movies',  os.path.join("project4", "ml-latest-small", "movies.csv")),
+        ('Ratings', os.path.join("project4", "ml-latest-small", "ratings.csv")),
+        ('Tags',    os.path.join("project4", "ml-latest-small", "tags.csv")),
     ]
 
     tables = []
@@ -41,8 +42,8 @@ def index(request):
 def cold_start(request):
     """Cold-start recommendation page with guided active learning"""
     # Load the datasets
-    movies_df = pd.read_csv(r'project4\ml-latest-small\movies.csv')
-    ratings_df = pd.read_csv(r'project4\ml-latest-small\ratings.csv')
+    movies_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "movies.csv"))
+    ratings_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "ratings.csv"))
     
     # Get popular movies with varied genres for initial recommendations
     movie_ratings = ratings_df.groupby('movieId').agg(
@@ -94,8 +95,8 @@ def submit_ratings(request):
         ])
         
         # Load existing data
-        movies_df = pd.read_csv(r'project4\ml-latest-small\movies.csv')
-        ratings_df = pd.read_csv(r'project4\ml-latest-small\ratings.csv')
+        movies_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'movies.csv'))
+        ratings_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'ratings.csv'))
         
         # Combined ratings (add new user)
         combined_ratings = pd.concat([ratings_df, user_df])
@@ -170,8 +171,8 @@ def next_questions(request):
         current_ratings = data.get('ratings', {})
         
         # Load datasets
-        movies_df = pd.read_csv(r'project4\ml-latest-small\movies.csv')
-        ratings_df = pd.read_csv(r'project4\ml-latest-small\ratings.csv')
+        movies_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'movies.csv'))
+        ratings_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'ratings.csv'))
         
         # Already rated movies
         rated_movies = set(int(movie_id) for movie_id in current_ratings.keys())
