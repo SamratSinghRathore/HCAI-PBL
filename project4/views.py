@@ -41,40 +41,26 @@ def index(request):
     return render(request, 'project4/index.html', {'tables': tables})
 
 def cold_start(request, group='experimental'):
-    """
-    Cold-start recommendation page with guided active learning.
-    
-    Args:
-        request: HTTP request object.
-        group: Study group ('experimental' or 'control', default 'experimental').
-    
-    Returns:
-        Rendered cold-start template with initial movies.
-    """
-    # Validate group parameter
-    if group not in ['experimental', 'control']:
-        group = 'experimental'  # Fallback to experimental
-
-    # Load datasets
+    # Load MovieLens datasets
     movies_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "movies.csv"))
     ratings_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "ratings.csv"))
-    
-    # Get popular movies
+
+    # Create popular_movies DataFrame
     movie_ratings = ratings_df.groupby('movieId').agg(
         rating_count=('userId', 'count'),
         avg_rating=('rating', 'mean')
     ).reset_index()
     
     popular_movies = movie_ratings[
-        (movie_ratings['rating_count'] > 100) & 
-        (movie_ratings['avg_rating'] > 3.5)
+        (movie_ratings['rating_count'] > 50) &  # Minimum 50 ratings
+        (movie_ratings['avg_rating'] > 3.0)     # Average rating above 3
     ].merge(movies_df, on='movieId')
-    
-    # Create diverse set of initial movies
-    unique_genres = set()
+
+    # Prepare initial movies
     initial_movies = []
+    unique_genres = set()
     
-    for _, movie in popular_movies.iterrows():
+    for _, movie in popular_movies.sample(frac=1).iterrows():  # Shuffle for variety
         movie_genres = set(movie['genres'].split('|'))
         if len(unique_genres.intersection(movie_genres)) < 2:
             unique_genres.update(movie_genres)
@@ -94,15 +80,12 @@ def cold_start(request, group='experimental'):
             if len(initial_movies) >= 10:
                 break
     
-    # Select template
     template = 'project4/cold_start.html' if group == 'experimental' else 'project4/cold_start_control.html'
-    
-    is_study = group in ['experimental', 'control'] and request.session.get('group') == group
-    
     return render(request, template, {
         'initial_movies': json.dumps(initial_movies),
         'skip_welcome': True,
-        'is_study': is_study  # Pass flag to template
+        'is_study': group in ['experimental', 'control'],
+        'group': group
     })
 
 # def submit_ratings(request):
@@ -258,116 +241,58 @@ def submit_ratings(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 def next_questions(request):
-    """Determine next best movies to rate based on current ratings"""
     if request.method == 'POST':
-        data = json.loads(request.body)
-        current_ratings = data.get('ratings', {})
-        
-        # Load datasets
-        movies_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'movies.csv'))
-        ratings_df = pd.read_csv(os.path.join('project4', 'ml-latest-small', 'ratings.csv'))
-        
-        # Already rated movies
-        rated_movies = set(int(movie_id) for movie_id in current_ratings.keys())
-        
-        # Extract current user genre preferences based on high ratings (≥ 4.0)
-        liked_movies = [int(movie_id) for movie_id, rating in current_ratings.items() 
-                       if float(rating) >= 4.0]
-        
-        # Get genres of liked movies
-        liked_genres = set()
-        if liked_movies:
-            for _, movie in movies_df[movies_df['movieId'].isin(liked_movies)].iterrows():
-                movie_genres = movie['genres'].split('|')
-                liked_genres.update(movie_genres)
-        
-        # Strategies for next questions based on current state
-        next_movies = []
-        
-        # Strategy 1: If we have some ratings, find popular movies in liked genres
-        if liked_genres:
-            # Get popular movies from liked genres
-            genre_movies = movies_df[movies_df['genres'].str.contains('|'.join(liked_genres))]
-            genre_movie_ratings = genre_movies.merge(
-                ratings_df.groupby('movieId').agg(
-                    rating_count=('userId', 'count'),
-                    avg_rating=('rating', 'mean')
-                ).reset_index(),
-                on='movieId'
-            )
+        try:
+            data = json.loads(request.body)
+            rated_movies = data.get('rated_movies', [])
             
-            # Filter for popular, well-rated movies not yet rated
-            popular_genre_movies = genre_movie_ratings[
-                (genre_movie_ratings['rating_count'] > 50) &
-                (genre_movie_ratings['avg_rating'] > 3.8) &
-                (~genre_movie_ratings['movieId'].isin(rated_movies))
-            ].sort_values('rating_count', ascending=False).head(5)
+            # Load datasets
+            movies_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "movies.csv"))
+            ratings_df = pd.read_csv(os.path.join("project4", "ml-latest-small", "ratings.csv"))
             
-            for _, movie in popular_genre_movies.iterrows():
-                dominant_genre = movie['genres'].split('|')[0]
-                next_movies.append({
-                    'id': int(movie['movieId']),
-                    'title': movie['title'],
-                    'genres': movie['genres'],
-                    'explanation': f"Rating this will help us refine your {dominant_genre} recommendations"
-                })
-        
-        # Strategy 2: Add movies from underrepresented genres to diversify
-        current_genre_coverage = set()
-        for movie_id in rated_movies:
-            movie = movies_df[movies_df['movieId'] == int(movie_id)]
-            if not movie.empty:
-                genres = movie.iloc[0]['genres'].split('|')
-                current_genre_coverage.update(genres)
-        
-        # Find popular movies from genres not yet covered
-        popular_movies = movies_df.merge(
-            ratings_df.groupby('movieId').agg(
+            # Get popular movies
+            movie_ratings = ratings_df.groupby('movieId').agg(
                 rating_count=('userId', 'count'),
                 avg_rating=('rating', 'mean')
-            ).reset_index(),
-            on='movieId'
-        )
-        
-        popular_movies = popular_movies[
-            (popular_movies['rating_count'] > 100) &
-            (popular_movies['avg_rating'] > 3.5) &
-            (~popular_movies['movieId'].isin(rated_movies))
-        ]
-        
-        for _, movie in popular_movies.iterrows():
-            movie_genres = set(movie['genres'].split('|'))
-            # Add movies with genres we haven't covered well
-            if len(current_genre_coverage.intersection(movie_genres)) <= 1:
-                next_movies.append({
-                    'id': int(movie['movieId']),
-                    'title': movie['title'], 
-                    'genres': movie['genres'],
-                    'explanation': f"This will help us understand if you enjoy {movie['genres'].replace('|', '/')} films"
-                })
-                if len(next_movies) >= 10:
-                    break
-        
-        # If we still need more movies, add some highly rated films across all genres
-        if len(next_movies) < 10:
-            remaining_needed = 10 - len(next_movies)
-            already_selected = set(movie['id'] for movie in next_movies)
-            top_rated = popular_movies[
-                (~popular_movies['movieId'].isin(already_selected)) &
-                (~popular_movies['movieId'].isin(rated_movies))
-            ].sort_values('avg_rating', ascending=False).head(remaining_needed)
+            ).reset_index()
             
-            for _, movie in top_rated.iterrows():
-                next_movies.append({
-                    'id': int(movie['movieId']),
-                    'title': movie['title'],
-                    'genres': movie['genres'],
-                    'explanation': f"This highly-rated movie will help us understand your general preferences"
-                })
-        
-        return JsonResponse({'next_movies': next_movies[:10]})
-    
-    return JsonResponse({'error': 'Invalid request method'})
+            popular_movies = movie_ratings[
+                (movie_ratings['rating_count'] > 50) & 
+                (movie_ratings['avg_rating'] > 3.0)
+            ].merge(movies_df, on='movieId')
+            
+            # Exclude rated movies
+            available_movies = popular_movies[~popular_movies['movieId'].isin(rated_movies)]
+            
+            # Select diverse movies
+            unique_genres = set()
+            new_movies = []
+            
+            for _, movie in available_movies.sample(frac=1).iterrows():  # Shuffle for variety
+                movie_genres = set(movie['genres'].split('|'))
+                if len(unique_genres.intersection(movie_genres)) < 2:
+                    unique_genres.update(movie_genres)
+                    movie_data = {
+                        'id': int(movie['movieId']),
+                        'title': movie['title'],
+                        'genres': movie['genres'],
+                        'avg_rating': float(movie['avg_rating']),
+                        'rating_count': int(movie['rating_count']),
+                    }
+                    if request.session.get('group') == 'experimental':
+                        movie_data['explanation'] = (
+                            f"This {movie['genres'].replace('|', '/')} movie helps us "
+                            f"understand your taste in {movie['genres'].split('|')[0]} films"
+                        )
+                    new_movies.append(movie_data)
+                    if len(new_movies) >= 10:
+                        break
+            
+            return JsonResponse({'movies': new_movies})
+        except Exception as e:
+            print(f"Error in next_questions: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 import random
 from django.shortcuts import redirect
