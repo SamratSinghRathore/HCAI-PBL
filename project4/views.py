@@ -3,9 +3,11 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
 import os
 from sklearn.decomposition import NMF
+from django.conf import settings
+from django.http import Http404
 
 def index(request):
     """Home page view showing dataset information"""
@@ -326,3 +328,10 @@ def store_recommendations(request):
         request.session['recommendations'] = json.dumps(recommendations)
         return JsonResponse({'status': 'success'})
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+def download_pdf(request, pdf_name):
+    """Serve the requested PDF file for download."""
+    pdf_path = os.path.join(settings.STATICFILES_DIRS[0], 'project4', 'pdfs', f'{pdf_name}.pdf')
+    if os.path.exists(pdf_path):
+        return FileResponse(open(pdf_path, 'rb'), as_attachment=True, filename=f'{pdf_name}.pdf')
+    raise Http404("PDF not found")
