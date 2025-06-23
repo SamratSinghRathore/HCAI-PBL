@@ -32,7 +32,7 @@ The project addresses three main tasks:
 1. **Task 1: Guided Active Learning Setup**
    - Implemented a cold-start recommendation system where users rate movies to receive personalized recommendations.
    - The experimental group receives explanations (e.g., "This movie helps us understand your taste in [genre] films") to guide their ratings, while the control group does not.
-   - Uses cosine similarity for recommendations based on user ratings.
+   - Uses Matrix Factorisation for recommendations based on user ratings.
 
 2. **Task 2: User Study Design**
    - Hypothesis: Providing explanations improves recommendation accuracy and user satisfaction.
