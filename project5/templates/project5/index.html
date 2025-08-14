@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="box">
+  <div class="header-section">
+    <div class="main-title">Reinforcement Learning with Human Feedback</div>
+  </div>
+
+  <div class="main-text">
+    <!-- Task -->
+    <div class="info-card">
+      <h3>The Task</h3>
+      <p>
+        Guide the mouse across a 5×5 grid to reach cheese while avoiding traps and walls. The episode ends when the mouse collects cheese or falls into a trap.
+      </p>
+    </div>
+
+    <!-- Actions / Steps -->
+    <div class="info-card">
+      <h3>What You Can Do</h3>
+      <ul class="steps-list">
+        <li>Move the mouse: Up ↑, Down ↓, Left ←, Right →</li>
+        <li>Bumping into a wall keeps position</li>
+        <li>Train with REINFORCE or provide Human Feedback</li>
+      </ul>
+    </div>
+
+    <!-- Rewards -->
+    <div class="reward-section">
+      <h3>Rewards</h3>
+      <div class="reward-grid">
+        <div class="reward-item positive">
+          <div class="reward-icon">🧀</div>
+          <div class="reward-details">
+            <span class="reward-action">Collect Cheese</span>
+            <span class="reward-value">+10</span>
+          </div>
+        </div>
+        <div class="reward-item negative">
+          <div class="reward-icon">❌</div>
+          <div class="reward-details">
+            <span class="reward-action">Enter Trap</span>
+            <span class="reward-value">-50</span>
+          </div>
+        </div>
+        <div class="reward-item neutral">
+          <div class="reward-icon">👣</div>
+          <div class="reward-details">
+            <span class="reward-action">Empty Cell / Hit Wall</span>
+            <span class="reward-value">-0.2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <a class="action-button primary">
+        Start Reinforcement Learning
+      </a>
+      <a class="action-button secondary">
+        Human Feedback
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Match Project 4 container and header styling */
+.box {
+  width: 90%;
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  position: relative;
+  transform: none;
+  top: auto;
+  left: auto;
+  display: block;
+}
+.header-section {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+.main-title {
+  font-size: 2.5rem;
+  color: #2c3e50;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+.main-subtitle {
+  font-size: 1.2rem;
+  color: #666;
+}
+.project-description { color: #5a6b7b; line-height: 1.6; max-width: 800px; margin: 0 auto; }
+
+/* Cards and lists */
+.info-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  margin: 18px 0;
+}
+.steps-list { margin: 0; padding-left: 18px; color: #495057; }
+.steps-list li { margin: 8px 0; }
+
+/* Rewards */
+.reward-section { margin: 24px 0; }
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+.reward-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px; border-radius: 10px; border-left: 5px solid;
+}
+.reward-item.positive { background: #d4edda; border-left-color: #28a745; }
+.reward-item.negative { background: #f8d7da; border-left-color: #dc3545; }
+.reward-item.neutral  { background: #e2e3e5; border-left-color: #6c757d; }
+.reward-icon { font-size: 1.8em; }
+.reward-action { font-weight: 600; color: #2c3e50; }
+.reward-value { font-weight: 700; }
+
+/* Buttons */
+.actions {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 12px;
+}
+.action-button {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-radius: 8px; text-decoration: none;
+  font-weight: 600; transition: all 0.2s ease; cursor: pointer;
+}
+.action-button.primary {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: #fff;
+}
+.action-button.secondary {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: #fff;
+}
+.action-button:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .box { width: 94%; padding: 20px; }
+  .main-title { font-size: 2.1em; }
+}
+</style>
+{% endblock %}

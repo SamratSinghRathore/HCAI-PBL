@@ -9,3 +9,5 @@ palmerpenguins
 gosdt
 graphviz
 dice-ml
+torch
+torchvision
