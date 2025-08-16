@@ -349,7 +349,13 @@ function drawChart() {
 
 async function startTraining() {
     try {
-        const response = await fetch('/project5/start_training/', { method: 'POST' });
+        const response = await fetch('/project5/start_training/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
         const data = await response.json();
         
         currentSession = data.session_id;
@@ -369,7 +375,13 @@ async function startTraining() {
 
 async function resetTraining() {
     try {
-        await fetch('/project5/reset_training/', { method: 'POST' });
+        await fetch('/project5/reset_training/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
         
         currentSession = null;
         currentTrajectories = null;
@@ -406,7 +418,13 @@ async function trainEpisode() {
         document.getElementById('trainEpisodeBtn').disabled = true;
         document.getElementById('trainingStatus').textContent = 'Training episode...';
         
-        const response = await fetch('/project5/train_episode/', { method: 'POST' });
+        const response = await fetch('/project5/train_episode/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
         const data = await response.json();
         
         document.getElementById('trainingStatus').textContent = 
@@ -439,7 +457,10 @@ async function trainBatch() {
         
         const response = await fetch('/project5/train_batch/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
             body: JSON.stringify({ num_episodes: batchSize })
         });
         const data = await response.json();
@@ -470,7 +491,13 @@ async function generateTrajectories() {
     try {
         document.getElementById('generateTrajectoriesBtn').disabled = true;
         
-        const response = await fetch('/project5/generate_trajectories/', { method: 'POST' });
+        const response = await fetch('/project5/generate_trajectories/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
         const data = await response.json();
         
         currentTrajectories = data;
@@ -512,27 +539,6 @@ async function generateTrajectories() {
     }
 }
 
-function countCheeseTypes(gridSequence) {
-    let normalCheese = 0;
-    let organicCheese = 0;
-    
-    // Count cheese in initial grid
-    const initialGrid = gridSequence[0].grid;
-    normalCheese = (initialGrid.match(/C/g) || []).length;
-    organicCheese = (initialGrid.match(/O/g) || []).length;
-    
-    return { normal: normalCheese, organic: organicCheese };
-}
-
-function selectTrajectory(trajectoryNum) {
-    selectedTrajectory = trajectoryNum;
-    
-    document.getElementById('trajectory1').classList.toggle('selected', trajectoryNum === 1);
-    document.getElementById('trajectory2').classList.toggle('selected', trajectoryNum === 2);
-    
-    document.getElementById('submitFeedbackBtn').disabled = false;
-}
-
 async function submitFeedback() {
     if (!selectedTrajectory || !currentTrajectories) return;
     
@@ -541,7 +547,10 @@ async function submitFeedback() {
         
         const response = await fetch('/project5/submit_feedback/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
             body: JSON.stringify({
                 trajectory1_id: currentTrajectories.trajectory1.id,
                 trajectory2_id: currentTrajectories.trajectory2.id,
@@ -604,6 +613,22 @@ async function checkSession() {
     } catch (error) {
         // No active session
     }
+}
+
+// Add CSRF token helper function
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
 // Animation functions

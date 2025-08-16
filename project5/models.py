@@ -21,7 +21,7 @@ class Trajectory(models.Model):
     states = models.TextField()  # JSON encoded
     actions = models.TextField()  # JSON encoded
     rewards = models.TextField()  # JSON encoded
-    total_reward = models.FloatField()
+    total_reward = models.FloatField(default=0.0)  # default value
     created_at = models.DateTimeField(auto_now_add=True)
     
     def set_trajectory_data(self, states, actions, rewards):
