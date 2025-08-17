@@ -371,8 +371,8 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">🎬 Trajectory Animation</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h2 class="modal-title">🎬 Trajectory Animation</h2>
+                <!-- <button type="button" class="btn-close" data-bs-dismiss="modal"></button> -->
             </div>
             <div class="modal-body">
                 <div class="text-center">
@@ -846,17 +846,25 @@ async function trainEpisode() {
         document.getElementById('trainEpisodeBtn').disabled = true;
         document.getElementById('trainingStatus').textContent = 'Training episode...';
         
-        const response = await fetch('/project5/train_episode/', { method: 'POST' });
+        const response = await simpleFetch('/project5/train_episode/', {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
         
         document.getElementById('trainingStatus').textContent = 
             `Episode ${data.episode}: Reward = ${data.total_reward.toFixed(2)}, Loss = ${data.loss.toFixed(4)}, Steps = ${data.steps}`;
         
         await updateStats();
-        document.getElementById('trainEpisodeBtn').disabled = false;
     } catch (error) {
         console.error('Error training episode:', error);
-        document.getElementById('trainingStatus').textContent = 'Error training episode';
+        document.getElementById('trainingStatus').textContent = 'Error training episode: ' + error.message;
+    } finally {
         document.getElementById('trainEpisodeBtn').disabled = false;
     }
 }
@@ -947,12 +955,48 @@ async function checkSession() {
     }
 }
 
+function getActualRewards(gridSequence) {
+    // Calculate rewards based on grid changes
+    const rewards = [];
+    
+    for (let i = 0; i < gridSequence.length; i++) {
+        const step = gridSequence[i];
+        let reward = -0.2; // Default step penalty
+        
+        // Check if this step collected cheese by comparing grids
+        if (i > 0) {
+            const prevGrid = gridSequence[i-1].grid;
+            const currGrid = step.grid;
+            
+            // Count cheese in previous vs current grid
+            const prevCheeseCount = (prevGrid.match(/[CO]/g) || []).length;
+            const currCheeseCount = (currGrid.match(/[CO]/g) || []).length;
+            
+            if (currCheeseCount < prevCheeseCount) {
+                reward = 10; // Cheese collected!
+            }
+            
+            // Check if hit trap (mouse disappeared or game ended abruptly)
+            if (!currGrid.includes('M') && step.action !== 'done') {
+                reward = -50; // Hit trap
+            }
+        }
+        
+        rewards.push(reward);
+    }
+    
+    return rewards;
+}
+
 // Animation functions
 function showTrajectoryAnimation(trajectoryNum) {
     if (!currentTrajectories) return;
     
     const trajectory = trajectoryNum === 1 ? currentTrajectories.trajectory1 : currentTrajectories.trajectory2;
+    
+    // Get the actual rewards from the trajectory data
     animationData = trajectory.grid_sequence;
+    animationRewards = getActualRewards(trajectory.grid_sequence);
     animationIndex = 0;
     animationPlaying = false;
     
@@ -962,6 +1006,7 @@ function showTrajectoryAnimation(trajectoryNum) {
     modal.show();
 }
 
+
 function updateAnimationDisplay() {
     if (!animationData || animationIndex >= animationData.length) return;
     
@@ -970,8 +1015,23 @@ function updateAnimationDisplay() {
     document.getElementById('animationStep').textContent = step.step;
     document.getElementById('animationAction').textContent = step.action;
     
-    const reward = step.action === 'done' ? 0 : -0.2;
+    // Use the actual reward from the trajectory data
+    console.log("REWWARDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD:", step.reward)
+    const reward = step.reward || -0.2;
     document.getElementById('animationReward').textContent = reward;
+    
+    // Add color coding for rewards
+    const rewardElement = document.getElementById('animationReward');
+    if (reward >= 10) {
+        rewardElement.style.color = 'green';
+        rewardElement.style.fontWeight = 'bold';
+    } else if (reward <= -10) {
+        rewardElement.style.color = 'red';
+        rewardElement.style.fontWeight = 'bold';
+    } else {
+        rewardElement.style.color = 'orange';
+        rewardElement.style.fontWeight = 'normal';
+    }
 }
 
 function prevStep() {
@@ -1066,6 +1126,12 @@ async function submitFeedback() {
         document.getElementById('submitFeedbackBtn').disabled = true;
         showStatus('Submitting feedback...', 'info');
         
+        console.log('Submitting feedback:', {
+            trajectory1_id: currentTrajectories.trajectory1.id,
+            trajectory2_id: currentTrajectories.trajectory2.id,
+            preferred: selectedTrajectory
+        });
+        
         const response = await simpleFetch('/project5/submit_feedback/', {
             method: 'POST',
             body: JSON.stringify({
@@ -1075,12 +1141,16 @@ async function submitFeedback() {
             })
         });
         
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('Error response:', errorData);
             throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('Feedback response:', data);
         
         if (data.error) {
             throw new Error(data.error);
@@ -1089,8 +1159,11 @@ async function submitFeedback() {
         const trajectoryName = selectedTrajectory === 1 ? 'A' : 'B';
         showStatus(`✅ Feedback submitted! You preferred Trajectory ${trajectoryName}.`, 'success');
         
-        // Update stats immediately after successful submission
-        await updateStats();
+        // Force update stats after a short delay
+        setTimeout(async () => {
+            await updateStats();
+            console.log('Stats updated after feedback submission');
+        }, 500);
         
         // Hide comparison after delay
         setTimeout(() => {
@@ -1178,21 +1251,6 @@ function getCookie(name) {
         }
     }
     return cookieValue;
-}
-
-// Animation functions
-function showTrajectoryAnimation(trajectoryNum) {
-    if (!currentTrajectories) return;
-    
-    const trajectory = trajectoryNum === 1 ? currentTrajectories.trajectory1 : currentTrajectories.trajectory2;
-    animationData = trajectory.grid_sequence;
-    animationIndex = 0;
-    animationPlaying = false;
-    
-    updateAnimationDisplay();
-    
-    const modal = new bootstrap.Modal(document.getElementById('animationModal'));
-    modal.show();
 }
 
 function updateAnimationDisplay() {

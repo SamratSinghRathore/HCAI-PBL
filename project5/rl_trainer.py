@@ -75,11 +75,11 @@ class RLTrainer:
             'actions': actions,
             'rewards': rewards,
             'total_reward': total_reward,
-            'grid_sequence': self.get_grid_sequence(states, actions)
+            'grid_sequence': self.get_grid_sequence(states, actions, rewards)  # Passing rewards here
         }
     
-    def get_grid_sequence(self, states, actions):
-        """Convert state sequence to readable grid sequence"""
+    def get_grid_sequence(self, states, actions, rewards):
+        """Convert state sequence to readable grid sequence with actual rewards"""
         grids = []
         for i, state in enumerate(states):
             # Convert state back to grid for visualization
@@ -95,10 +95,13 @@ class RLTrainer:
             grid_str = '\n'.join([' '.join([symbols[cell] for cell in row]) for row in grid])
             
             action_name = ['up', 'down', 'left', 'right'][actions[i]] if i < len(actions) else 'done'
+            actual_reward = rewards[i] if i < len(rewards) else 0
+            
             grids.append({
                 'grid': grid_str,
                 'action': action_name,
-                'step': i
+                'step': i,
+                'reward': actual_reward  # Include actual reward
             })
         
         return grids

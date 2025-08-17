@@ -131,26 +131,44 @@ class MouseEnvironment:
         self.grid[self.mouse_pos] = EMPTY
         reward = self.get_reward(new_pos)
         
-        # Check if collected cheese/organic cheese or hit trap
-        if self.grid[new_pos] in [CHEESE, ORGANIC_CHEESE]:
+        # Handle different cell types
+        cell_content = self.grid[new_pos]
+        
+        if cell_content == CHEESE:
             self.grid[new_pos] = EMPTY  # Remove cheese
             if new_pos in self.cheese_positions:
                 self.cheese_positions.remove(new_pos)
+            reward = 10
+            print(f"Cheese collected! Reward: {reward}, Remaining cheese: {len(self.cheese_positions) + len(self.organic_cheese_positions)}")
+            
+        elif cell_content == ORGANIC_CHEESE:
+            self.grid[new_pos] = EMPTY  # Remove organic cheese
             if new_pos in self.organic_cheese_positions:
                 self.organic_cheese_positions.remove(new_pos)
+            reward = 10
+            print(f"Organic cheese collected! Reward: {reward}, Remaining cheese: {len(self.cheese_positions) + len(self.organic_cheese_positions)}")
             
-            # Check if all cheese collected
-            if len(self.cheese_positions) == 0 and len(self.organic_cheese_positions) == 0:
-                self.done = True
-        elif self.grid[new_pos] == TRAP:
-            self.done = True  # Game over
+        elif cell_content == TRAP:
+            reward = -50
+            self.done = True  # Game over - hit trap
+            print(f"Trap hit! Game over. Reward: {reward}")
         
+        else:
+            reward = -0.2  # Empty cell movement penalty
+        
+        # Update mouse position
         self.mouse_pos = new_pos
         self.grid[new_pos] = MOUSE
         
-        self.steps += 1
-        if self.steps >= 50:  # Max steps
+        # Check win condition - all cheese collected
+        if len(self.cheese_positions) == 0 and len(self.organic_cheese_positions) == 0:
             self.done = True
+            print("All cheese collected! Episode complete.")
+        
+        self.steps += 1
+        if self.steps >= 50:  # Max steps limit
+            self.done = True
+            print("Maximum steps reached. Episode complete.")
             
         return self.get_state(), reward, self.done
     
