@@ -201,51 +201,88 @@ class PolicyNetwork(nn.Module):
 
 class REINFORCEAgent:
     def __init__(self, learning_rate=0.001):
+        self.device = torch.device('cpu')
         self.policy_net = PolicyNetwork()
+        self.policy_net.to(self.device)
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=learning_rate)
         self.saved_log_probs = []
         self.rewards = []
     
     def select_action(self, state):
         """Select action using current policy"""
-        state_tensor = torch.FloatTensor(state).unsqueeze(0)
-        probs = self.policy_net(state_tensor)
-        action_dist = torch.distributions.Categorical(probs)
-        action = action_dist.sample()
-        self.saved_log_probs.append(action_dist.log_prob(action))
-        return action.item()
+        try:
+            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            # Remove torch.no_grad() for training - we need gradients!
+            probs = self.policy_net(state_tensor)
+            action_dist = torch.distributions.Categorical(probs)
+            action = action_dist.sample()
+            self.saved_log_probs.append(action_dist.log_prob(action))
+            return action.item()
+        except Exception as e:
+            print(f"Error in select_action: {e}")
+            return np.random.randint(0, 4)
+    
+    def select_action_no_grad(self, state):
+        """Select action without gradient tracking (for inference)"""
+        try:
+            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                probs = self.policy_net(state_tensor)
+            action_dist = torch.distributions.Categorical(probs)
+            action = action_dist.sample()
+            return action.item()
+        except Exception as e:
+            print(f"Error in select_action_no_grad: {e}")
+            return np.random.randint(0, 4)
     
     def update_policy(self, gamma=0.99):
         """Update policy using REINFORCE algorithm"""
-        discounted_rewards = []
-        cumulative_reward = 0
-        
-        # Calculate discounted rewards
-        for reward in reversed(self.rewards):
-            cumulative_reward = reward + gamma * cumulative_reward
-            discounted_rewards.insert(0, cumulative_reward)
-        
-        # Convert to tensor and normalize
-        discounted_rewards = torch.FloatTensor(discounted_rewards)
-        discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-8)
-        
-        # Calculate policy loss
-        policy_loss = []
-        for log_prob, reward in zip(self.saved_log_probs, discounted_rewards):
-            policy_loss.append(-log_prob * reward)
-        
-        policy_loss = torch.cat(policy_loss).sum()
-        
-        # Update policy
-        self.optimizer.zero_grad()
-        policy_loss.backward()
-        self.optimizer.step()
-        
-        # Clear saved values
-        self.saved_log_probs = []
-        self.rewards = []
-        
-        return policy_loss.item()
+        try:
+            if len(self.rewards) == 0:
+                return 0.0
+                
+            discounted_rewards = []
+            cumulative_reward = 0
+            
+            # Calculate discounted rewards
+            for reward in reversed(self.rewards):
+                cumulative_reward = reward + gamma * cumulative_reward
+                discounted_rewards.insert(0, cumulative_reward)
+            
+            # Convert to tensor and normalize
+            discounted_rewards = torch.FloatTensor(discounted_rewards).to(self.device)
+            if len(discounted_rewards) > 1:
+                discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-8)
+            
+            # Calculate policy loss
+            policy_loss = []
+            for log_prob, reward in zip(self.saved_log_probs, discounted_rewards):
+                policy_loss.append(-log_prob * reward)
+            
+            if len(policy_loss) > 0:
+                policy_loss = torch.stack(policy_loss).sum()
+                
+                # Update policy
+                self.optimizer.zero_grad()
+                policy_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), 1.0)  # Add gradient clipping
+                self.optimizer.step()
+                
+                loss_value = policy_loss.item()
+            else:
+                loss_value = 0.0
+            
+            # Clear saved values
+            self.saved_log_probs = []
+            self.rewards = []
+            
+            return loss_value
+            
+        except Exception as e:
+            print(f"Error in update_policy: {e}")
+            self.saved_log_probs = []
+            self.rewards = []
+            return 0.0
     
     def get_state_dict(self):
         return self.policy_net.state_dict()

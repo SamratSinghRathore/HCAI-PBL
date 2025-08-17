@@ -59,7 +59,8 @@ class RLTrainer:
         total_reward = 0
         
         while not self.env.done:
-            action = self.agent.select_action(state)
+            # Use the no-gradient method for trajectory generation
+            action = self.agent.select_action_no_grad(state)
             next_state, reward, done = self.env.step(action)
             
             states.append(state.tolist())
@@ -68,9 +69,6 @@ class RLTrainer:
             
             total_reward += reward
             state = next_state
-        
-        # Clear saved log probs since we're not training
-        self.agent.saved_log_probs = []
         
         return {
             'states': states,
