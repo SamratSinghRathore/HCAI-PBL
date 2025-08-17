@@ -107,6 +107,51 @@ def train_batch(request):
     except Exception as e:
         return JsonResponse({'error': f'Batch training error: {str(e)}'}, status=500)
 
+# Add this new view to your existing views.py
+
+@csrf_exempt
+def retrain_with_feedback(request):
+    """Retrain policy using collected human feedback and Bradley-Terry model"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    session_id = request.session.get('rl_session_id')
+    if not session_id:
+        return JsonResponse({'error': 'No active session'}, status=400)
+    
+    try:
+        from .bradley_terry import BradleyTerryTrainer
+        
+        # Check if we have enough feedback
+        session = GameSession.objects.get(session_id=session_id)
+        feedback_count = HumanFeedback.objects.filter(session=session).count()
+        
+        if feedback_count < 5:
+            return JsonResponse({
+                'error': f'Need at least 5 feedback samples to retrain. Currently have {feedback_count}.'
+            }, status=400)
+        
+        # Initialize Bradley-Terry trainer
+        bt_trainer = BradleyTerryTrainer(session_id)
+        
+        # Get original trainer
+        original_trainer = get_trainer(session_id)
+        
+        # Retrain policy with learned reward
+        enhanced_trainer = bt_trainer.retrain_policy_with_learned_reward(original_trainer)
+        
+        # Save the enhanced policy
+        enhanced_trainer.save_session()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Policy retrained using {feedback_count} feedback samples',
+            'feedback_count': feedback_count
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': f'Retraining error: {str(e)}'}, status=500)
+
 @csrf_exempt
 def generate_trajectories_for_feedback(request):
     """Generate two trajectories for human feedback comparison"""
