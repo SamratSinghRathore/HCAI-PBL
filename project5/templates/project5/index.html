@@ -342,7 +342,8 @@
             </div>
             
             <div class="feedback-controls">
-                <p><strong>Click on your preferred trajectory above, then submit your choice:</strong></p>
+                <p><strong>Click on your preferred trajectory above, then submit your choice.<br>
+                           Note: You can select one of the two different trajectories and if you click on 🎬 Show Animation, you can view the respective animation under the Trajectory Animation section below:</strong></p>
                 <button id="submitFeedbackBtn" class="btn btn-success btn-lg" disabled>
                     ✅ Submit My Preference
                 </button>
@@ -562,28 +563,47 @@ async function resetTraining() {
     }
 }
 
+async function simpleFetch(url, options = {}) {
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    };
+    
+    return fetch(url, {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...options.headers,
+        },
+    });
+}
+
 async function trainEpisode() {
     try {
         document.getElementById('trainEpisodeBtn').disabled = true;
         document.getElementById('trainingStatus').textContent = 'Training episode...';
         
-        const response = await fetch('/project5/train_episode/', { 
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json'
-            }
+        const response = await simpleFetch('/project5/train_episode/', {
+            method: 'POST'
         });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
         
         document.getElementById('trainingStatus').textContent = 
             `Episode ${data.episode}: Reward = ${data.total_reward.toFixed(2)}, Loss = ${data.loss.toFixed(4)}, Steps = ${data.steps}`;
         
         await updateStats();
-        document.getElementById('trainEpisodeBtn').disabled = false;
     } catch (error) {
         console.error('Error training episode:', error);
-        document.getElementById('trainingStatus').textContent = 'Error training episode';
+        document.getElementById('trainingStatus').textContent = 'Error training episode: ' + error.message;
+    } finally {
         document.getElementById('trainEpisodeBtn').disabled = false;
     }
 }
@@ -727,9 +747,49 @@ function drawChart() {
     ctx.restore();
 }
 
+function updateTrajectoryUI(data) {
+    // Update trajectory stats
+    document.getElementById('reward1').textContent = data.trajectory1.total_reward.toFixed(2);
+    document.getElementById('steps1').textContent = data.trajectory1.steps;
+    document.getElementById('reward2').textContent = data.trajectory2.total_reward.toFixed(2);
+    document.getElementById('steps2').textContent = data.trajectory2.steps;
+    
+    // Count cheese types (assuming this function exists)
+    const cheese1 = countCheeseTypes(data.trajectory1.grid_sequence);
+    const cheese2 = countCheeseTypes(data.trajectory2.grid_sequence);
+    
+    document.getElementById('normalCheese1').textContent = cheese1.normal;
+    document.getElementById('organicCheese1').textContent = cheese1.organic;
+    document.getElementById('normalCheese2').textContent = cheese2.normal;
+    document.getElementById('organicCheese2').textContent = cheese2.organic;
+    
+    // Show final grids
+    if (data.trajectory1.grid_sequence?.length > 0) {
+        const finalGrid1 = data.trajectory1.grid_sequence[data.trajectory1.grid_sequence.length - 1];
+        document.getElementById('grid1').textContent = finalGrid1.grid;
+    }
+    
+    if (data.trajectory2.grid_sequence?.length > 0) {
+        const finalGrid2 = data.trajectory2.grid_sequence[data.trajectory2.grid_sequence.length - 1];
+        document.getElementById('grid2').textContent = finalGrid2.grid;
+    }
+    
+    // Reset selection
+    document.getElementById('trajectory1').classList.remove('selected');
+    document.getElementById('trajectory2').classList.remove('selected');
+    document.getElementById('submitFeedbackBtn').disabled = true;
+}
+
 async function startTraining() {
     try {
-        const response = await fetch('/project5/start_training/', { method: 'POST' });
+        const response = await simpleFetch('/project5/start_training/', {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         currentSession = data.session_id;
@@ -740,10 +800,10 @@ async function startTraining() {
         document.getElementById('trainBatchBtn').disabled = false;
         document.getElementById('generateTrajectoriesBtn').disabled = false;
         
-        updateStats();
+        await updateStats();
     } catch (error) {
         console.error('Error starting training:', error);
-        alert('Failed to start training session');
+        alert('Failed to start training session: ' + error.message);
     }
 }
 
@@ -951,15 +1011,13 @@ async function generateTrajectories() {
         document.getElementById('generateTrajectoriesBtn').disabled = true;
         showStatus('Generating trajectories...', 'info');
         
-        const response = await fetch('/project5/generate_trajectories/', { 
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
+        const response = await simpleFetch('/project5/generate_trajectories/', {
+            method: 'POST'
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
@@ -971,37 +1029,10 @@ async function generateTrajectories() {
         currentTrajectories = data;
         selectedTrajectory = null;
         
-        // Update UI
-        document.getElementById('reward1').textContent = data.trajectory1.total_reward.toFixed(2);
-        document.getElementById('steps1').textContent = data.trajectory1.steps;
-        document.getElementById('reward2').textContent = data.trajectory2.total_reward.toFixed(2);
-        document.getElementById('steps2').textContent = data.trajectory2.steps;
+        // Update UI with trajectory data
+        updateTrajectoryUI(data);
         
-        // Count cheese types
-        const cheese1 = countCheeseTypes(data.trajectory1.grid_sequence);
-        const cheese2 = countCheeseTypes(data.trajectory2.grid_sequence);
-        
-        document.getElementById('normalCheese1').textContent = cheese1.normal;
-        document.getElementById('organicCheese1').textContent = cheese1.organic;
-        document.getElementById('normalCheese2').textContent = cheese2.normal;
-        document.getElementById('organicCheese2').textContent = cheese2.organic;
-        
-        // Show final grids
-        if (data.trajectory1.grid_sequence && data.trajectory1.grid_sequence.length > 0) {
-            const finalGrid1 = data.trajectory1.grid_sequence[data.trajectory1.grid_sequence.length - 1];
-            document.getElementById('grid1').textContent = finalGrid1.grid;
-        }
-        
-        if (data.trajectory2.grid_sequence && data.trajectory2.grid_sequence.length > 0) {
-            const finalGrid2 = data.trajectory2.grid_sequence[data.trajectory2.grid_sequence.length - 1];
-            document.getElementById('grid2').textContent = finalGrid2.grid;
-        }
-        
-        // Reset selection
-        document.getElementById('trajectory1').classList.remove('selected');
-        document.getElementById('trajectory2').classList.remove('selected');
-        document.getElementById('submitFeedbackBtn').disabled = true;
-        
+        // Show comparison section
         document.getElementById('trajectoryComparison').style.display = 'block';
         showStatus('Trajectories generated! Click on your preferred trajectory.', 'success');
         
@@ -1026,17 +1057,17 @@ function selectTrajectory(trajectoryNum) {
 }
 
 async function submitFeedback() {
-    if (!selectedTrajectory || !currentTrajectories) return;
+    if (!selectedTrajectory || !currentTrajectories) {
+        showStatus('No trajectory selected', 'error');
+        return;
+    }
     
     try {
         document.getElementById('submitFeedbackBtn').disabled = true;
         showStatus('Submitting feedback...', 'info');
         
-        const response = await fetch('/project5/submit_feedback/', {
+        const response = await simpleFetch('/project5/submit_feedback/', {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify({
                 trajectory1_id: currentTrajectories.trajectory1.id,
                 trajectory2_id: currentTrajectories.trajectory2.id,
@@ -1045,7 +1076,8 @@ async function submitFeedback() {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
@@ -1057,10 +1089,12 @@ async function submitFeedback() {
         const trajectoryName = selectedTrajectory === 1 ? 'A' : 'B';
         showStatus(`✅ Feedback submitted! You preferred Trajectory ${trajectoryName}.`, 'success');
         
-        // Hide comparison and update stats
+        // Update stats immediately after successful submission
+        await updateStats();
+        
+        // Hide comparison after delay
         setTimeout(() => {
             document.getElementById('trajectoryComparison').style.display = 'none';
-            updateStats();
         }, 2000);
         
     } catch (error) {
@@ -1106,6 +1140,10 @@ async function updateStats() {
     }
 }
 
+function getCSRFToken() {
+    return getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+}
+
 async function checkSession() {
     try {
         const response = await fetch('/project5/training_stats/');
@@ -1126,7 +1164,7 @@ async function checkSession() {
     }
 }
 
-// Add CSRF token helper function
+// CSRF token helper function
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

@@ -5,7 +5,6 @@ import json
 import uuid
 from .models import GameSession, Trajectory, HumanFeedback
 
-# Import these only when needed to avoid import errors if dependencies aren't installed
 def get_trainer(session_id):
     try:
         from .rl_trainer import RLTrainer
@@ -20,17 +19,21 @@ def index(request):
 @csrf_exempt
 def start_training(request):
     """Initialize a new training session"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+        
     session_id = str(uuid.uuid4())
     request.session['rl_session_id'] = session_id
     
-    # Create new game session
     game_session = GameSession.objects.create(session_id=session_id)
-    
     return JsonResponse({'session_id': session_id, 'status': 'initialized'})
 
 @csrf_exempt
 def train_episode(request):
     """Train a single episode"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+        
     session_id = request.session.get('rl_session_id')
     if not session_id:
         return JsonResponse({'error': 'No active session'}, status=400)
@@ -39,10 +42,7 @@ def train_episode(request):
         trainer = get_trainer(session_id)
         result = trainer.train_episode()
         
-        # Save trajectory to database
         session = GameSession.objects.get(session_id=session_id)
-        
-        # Create trajectory with all data at once
         trajectory = Trajectory.objects.create(
             session=session,
             episode=session.current_episode,
@@ -61,60 +61,58 @@ def train_episode(request):
             'loss': result['loss'],
             'steps': len(result['actions'])
         })
-    except ImportError as e:
-        return JsonResponse({'error': str(e)}, status=500)
     except Exception as e:
         return JsonResponse({'error': f'Training error: {str(e)}'}, status=500)
 
 @csrf_exempt
 def train_batch(request):
     """Train multiple episodes"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            num_episodes = data.get('num_episodes', 10)
-            
-            session_id = request.session.get('rl_session_id')
-            if not session_id:
-                return JsonResponse({'error': 'No active session'}, status=400)
-            
-            trainer = get_trainer(session_id)
-            results = trainer.train_batch(num_episodes)
-            
-            # Save trajectories
-            session = GameSession.objects.get(session_id=session_id)
-            for result in results:
-                Trajectory.objects.create(
-                    session=session,
-                    episode=session.current_episode + result['episode'],
-                    states=json.dumps(result['states']),
-                    actions=json.dumps(result['actions']),
-                    rewards=json.dumps(result['rewards']),
-                    total_reward=result['total_reward']
-                )
-            
-            session.current_episode += num_episodes
-            session.save()
-            
-            avg_reward = sum(r['total_reward'] for r in results) / len(results)
-            avg_loss = sum(r['loss'] for r in results) / len(results)
-            
-            return JsonResponse({
-                'num_episodes': num_episodes,
-                'average_reward': avg_reward,
-                'average_loss': avg_loss,
-                'total_episodes': session.current_episode
-            })
-        except ImportError as e:
-            return JsonResponse({'error': str(e)}, status=500)
-        except Exception as e:
-            return JsonResponse({'error': f'Batch training error: {str(e)}'}, status=500)
-    
-    return JsonResponse({'error': 'POST method required'}, status=405)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        num_episodes = data.get('num_episodes', 10)
+        
+        session_id = request.session.get('rl_session_id')
+        if not session_id:
+            return JsonResponse({'error': 'No active session'}, status=400)
+        
+        trainer = get_trainer(session_id)
+        results = trainer.train_batch(num_episodes)
+        
+        session = GameSession.objects.get(session_id=session_id)
+        for result in results:
+            Trajectory.objects.create(
+                session=session,
+                episode=session.current_episode + result['episode'],
+                states=json.dumps(result['states']),
+                actions=json.dumps(result['actions']),
+                rewards=json.dumps(result['rewards']),
+                total_reward=result['total_reward']
+            )
+        
+        session.current_episode += num_episodes
+        session.save()
+        
+        avg_reward = sum(r['total_reward'] for r in results) / len(results)
+        avg_loss = sum(r['loss'] for r in results) / len(results)
+        
+        return JsonResponse({
+            'num_episodes': num_episodes,
+            'average_reward': avg_reward,
+            'average_loss': avg_loss,
+            'total_episodes': session.current_episode
+        })
+    except Exception as e:
+        return JsonResponse({'error': f'Batch training error: {str(e)}'}, status=500)
 
 @csrf_exempt
 def generate_trajectories_for_feedback(request):
     """Generate two trajectories for human feedback comparison"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+        
     session_id = request.session.get('rl_session_id')
     if not session_id:
         return JsonResponse({'error': 'No active session'}, status=400)
@@ -122,16 +120,14 @@ def generate_trajectories_for_feedback(request):
     try:
         trainer = get_trainer(session_id)
         
-        # Generate two trajectories
         traj1 = trainer.generate_trajectory()
         traj2 = trainer.generate_trajectory()
         
-        # Save trajectories
         session = GameSession.objects.get(session_id=session_id)
         
         trajectory1 = Trajectory.objects.create(
             session=session, 
-            episode=-1,  # -1 for feedback trajectories
+            episode=-1,
             states=json.dumps(traj1['states']),
             actions=json.dumps(traj1['actions']),
             rewards=json.dumps(traj1['rewards']),
@@ -161,41 +157,46 @@ def generate_trajectories_for_feedback(request):
                 'grid_sequence': traj2['grid_sequence']
             }
         })
-    except ImportError as e:
-        return JsonResponse({'error': str(e)}, status=500)
     except Exception as e:
         return JsonResponse({'error': f'Trajectory generation error: {str(e)}'}, status=500)
 
 @csrf_exempt
 def submit_feedback(request):
     """Submit human feedback preference"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            trajectory1_id = data.get('trajectory1_id')
-            trajectory2_id = data.get('trajectory2_id')
-            preferred = data.get('preferred')  # 1 or 2
-            
-            session_id = request.session.get('rl_session_id')
-            if not session_id:
-                return JsonResponse({'error': 'No active session'}, status=400)
-            
-            session = GameSession.objects.get(session_id=session_id)
-            trajectory1 = Trajectory.objects.get(id=trajectory1_id)
-            trajectory2 = Trajectory.objects.get(id=trajectory2_id)
-            
-            feedback = HumanFeedback.objects.create(
-                session=session,
-                trajectory1=trajectory1,
-                trajectory2=trajectory2,
-                preferred_trajectory=preferred
-            )
-            
-            return JsonResponse({'status': 'feedback_saved', 'feedback_id': feedback.id})
-        except Exception as e:
-            return JsonResponse({'error': f'Feedback submission error: {str(e)}'}, status=500)
-    
-    return JsonResponse({'error': 'POST method required'}, status=405)
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        trajectory1_id = data.get('trajectory1_id')
+        trajectory2_id = data.get('trajectory2_id')
+        preferred = data.get('preferred')
+        
+        session_id = request.session.get('rl_session_id')
+        if not session_id:
+            return JsonResponse({'error': 'No active session'}, status=400)
+        
+        if not trajectory1_id or not trajectory2_id or preferred not in [1, 2]:
+            return JsonResponse({'error': 'Invalid feedback data'}, status=400)
+        
+        session = GameSession.objects.get(session_id=session_id)
+        trajectory1 = Trajectory.objects.get(id=trajectory1_id, session=session)
+        trajectory2 = Trajectory.objects.get(id=trajectory2_id, session=session)
+        
+        feedback = HumanFeedback.objects.create(
+            session=session,
+            trajectory1=trajectory1,
+            trajectory2=trajectory2,
+            preferred_trajectory=preferred
+        )
+        
+        return JsonResponse({
+            'status': 'feedback_saved', 
+            'feedback_id': feedback.id,
+            'preferred': preferred
+        })
+    except Exception as e:
+        return JsonResponse({'error': f'Feedback submission error: {str(e)}'}, status=500)
 
 def get_training_stats(request):
     """Get training statistics"""
@@ -226,18 +227,19 @@ def get_training_stats(request):
 @csrf_exempt
 def reset_training(request):
     """Reset training session"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+        
     session_id = request.session.get('rl_session_id')
     if session_id:
         try:
             session = GameSession.objects.get(session_id=session_id)
-            # Delete all related data
             Trajectory.objects.filter(session=session).delete()
             HumanFeedback.objects.filter(session=session).delete()
             session.delete()
         except GameSession.DoesNotExist:
             pass
     
-    # Remove from Django session
     if 'rl_session_id' in request.session:
         del request.session['rl_session_id']
     
