@@ -242,7 +242,7 @@
                 <div id="trainingStats">
                     <div>Total Episodes: <span id="totalEpisodes">0</span></div>
                     <div>Average Reward (last 10): <span id="avgReward">N/A</span></div>
-                    <div>Total Feedbacks: <span id="totalFeedbacks">0</span></div>
+                    <!-- <div>Total Feedbacks: <span id="totalFeedbacks">0</span></div> -->
                 </div>
                 <canvas id="trainingChart" width="1800" height="200"></canvas>
             </div>
@@ -353,7 +353,9 @@
             </div>
         </div>
     </div>
-    
+    </div>
+    <h2>Total Feedbacks Submitted Already: <span id="totalFeedbacks">0</span></h2>
+    </div>
     <!-- Legend -->
     <div class="legend">
         <h4>Grid Symbols</h4>
@@ -1182,12 +1184,6 @@ async function submitFeedback() {
         document.getElementById('submitFeedbackBtn').disabled = true;
         showStatus('Submitting feedback...', 'info');
         
-        console.log('Submitting feedback:', {
-            trajectory1_id: currentTrajectories.trajectory1.id,
-            trajectory2_id: currentTrajectories.trajectory2.id,
-            preferred: selectedTrajectory
-        });
-        
         const response = await simpleFetch('/project5/submit_feedback/', {
             method: 'POST',
             body: JSON.stringify({
@@ -1197,28 +1193,26 @@ async function submitFeedback() {
             })
         });
         
-        console.log('Response status:', response.status);
-        
         if (!response.ok) {
             const errorData = await response.json();
-            console.error('Error response:', errorData);
             throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('Feedback response:', data);
         
         if (data.error) {
             throw new Error(data.error);
         }
+
+        // Directly update the feedback counter using the server's response.
+        document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
         
         const trajectoryName = selectedTrajectory === 1 ? 'A' : 'B';
         showStatus(`✅ Feedback submitted! You preferred Trajectory ${trajectoryName}.`, 'success');
         
-        // Force update stats after a short delay
+        // This will update the chart and other stats.
         setTimeout(async () => {
             await updateStats();
-            console.log('Stats updated after feedback submission');
         }, 500);
         
         // Hide comparison after delay
@@ -1307,19 +1301,6 @@ function getCookie(name) {
         }
     }
     return cookieValue;
-}
-
-function updateAnimationDisplay() {
-    if (!animationData || animationIndex >= animationData.length) return;
-    
-    const step = animationData[animationIndex];
-    document.getElementById('animationGrid').textContent = step.grid;
-    document.getElementById('animationStep').textContent = step.step;
-    document.getElementById('animationAction').textContent = step.action;
-    
-    // Calculate reward (simplified)
-    const reward = step.action === 'done' ? 0 : -0.2; // This is simplified
-    document.getElementById('animationReward').textContent = reward;
 }
 
 function prevStep() {
