@@ -235,10 +235,14 @@ def submit_feedback(request):
             preferred_trajectory=preferred
         )
         
+        # Verify feedback was saved
+        feedback_count = HumanFeedback.objects.filter(session=session).count()
+        
         return JsonResponse({
             'status': 'feedback_saved', 
             'feedback_id': feedback.id,
-            'preferred': preferred
+            'preferred': preferred,
+            'total_feedbacks': feedback_count  # Add this
         })
     except Exception as e:
         return JsonResponse({'error': f'Feedback submission error: {str(e)}'}, status=500)

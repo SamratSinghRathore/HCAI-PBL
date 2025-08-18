@@ -271,7 +271,7 @@
         <div id="feedbackStatus" class="status-message" style="display: none;"></div>
         
         <div id="trajectoryComparison" style="display: none;">
-            <h4 class="text-center mb-4">Select Your Preferred Trajectory</h4>
+            <h4 class="text-center mb-4">Select Your Preferred Trajectory<br>Note: The grid shown is final state after exploration stopped.</h4>
             
             <div class="trajectory-comparison">
                 <div class="trajectory-box" id="trajectory1" data-trajectory="1">
@@ -393,6 +393,17 @@
     </div>
 </div>
 
+<div class="training-section">
+    <h3>Task 2 & 3: Retrain Policy with Human Feedback</h3>
+    <p>Use collected human feedback to retrain the policy using Bradley-Terry model.</p>
+
+    <button id="retrainPolicyBtn" class="btn btn-success btn-lg" disabled>
+        🔄 Retrain Policy with Feedback
+    </button>
+
+    <div id="retrainStatus" class="status-message" style="display: none;"></div>
+</div>
+
 <script>
 let currentSession = null;
 let currentTrajectories = null;
@@ -419,6 +430,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Trajectory selection
     document.getElementById('trajectory1').addEventListener('click', () => selectTrajectory(1));
     document.getElementById('trajectory2').addEventListener('click', () => selectTrajectory(2));
+
+    // Retraining
+    document.getElementById('retrainPolicyBtn').addEventListener('click', retrainWithFeedback);
     
     // Check for existing session
     checkSession();
@@ -913,6 +927,47 @@ async function trainBatch() {
     }
 }
 
+async function retrainWithFeedback() {
+    try {
+        document.getElementById('retrainPolicyBtn').disabled = true;
+        showRetrainStatus('Retraining policy with collected feedback...', 'info');
+        
+        const response = await simpleFetch('/project5/retrain_with_feedback/', {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        showRetrainStatus(data.message, 'success');
+        
+        // Update stats after retraining
+        await updateStats();
+        
+    } catch (error) {
+        console.error('Error retraining policy:', error);
+        showRetrainStatus(`Error: ${error.message}`, 'error');
+    } finally {
+        document.getElementById('retrainPolicyBtn').disabled = false;
+    }
+}
+
+function showRetrainStatus(message, type) {
+    const statusDiv = document.getElementById('retrainStatus');
+    statusDiv.className = `status-message status-${type}`;
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
 async function updateStats() {
     try {
         const response = await fetch('/project5/training_stats/');
@@ -921,12 +976,14 @@ async function updateStats() {
         document.getElementById('totalEpisodes').textContent = data.total_episodes;
         document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
         
+        // Enable retrain button if enough feedback
+        document.getElementById('retrainPolicyBtn').disabled = data.total_feedbacks < 5;
+        
         if (data.rewards.length > 0) {
             const last10 = data.rewards.slice(-10);
             const avg = last10.reduce((a, b) => a + b, 0) / last10.length;
             document.getElementById('avgReward').textContent = avg.toFixed(2);
             
-            // Update chart
             trainingChart.data = data.rewards;
             drawChart();
         }
@@ -1015,10 +1072,9 @@ function updateAnimationDisplay() {
     document.getElementById('animationStep').textContent = step.step;
     document.getElementById('animationAction').textContent = step.action;
     
-    // Use the actual reward from the trajectory data
-    console.log("REWWARDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD:", step.reward)
-    const reward = step.reward || -0.2;
-    document.getElementById('animationReward').textContent = reward;
+    // Use the actual reward from the step data
+    const reward = step.reward;  // This should now have the actual reward value
+    document.getElementById('animationReward').textContent = reward.toFixed(2);
     
     // Add color coding for rewards
     const rewardElement = document.getElementById('animationReward');

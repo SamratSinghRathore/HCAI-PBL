@@ -103,7 +103,7 @@ class RLTrainer:
                 'grid': grid_str,
                 'action': action_name,
                 'step': i,
-                'reward': actual_reward  # Include actual reward
+                'reward': float(actual_reward)  # float
             })
         
         return grids
