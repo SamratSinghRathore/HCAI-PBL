@@ -2,156 +2,1204 @@
 {% load static %}
 
 {% block content %}
-<div class="box">
-  <div class="header-section">
-    <div class="main-title">Reinforcement Learning with Human Feedback</div>
-  </div>
+<style>
+.control-panel {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
 
-  <div class="main-text">
-    <!-- Task -->
-    <div class="info-card">
-      <h3>The Task</h3>
-      <p>
-        Guide the mouse across a 5×5 grid to reach cheese while avoiding traps and walls. The episode ends when the mouse collects cheese or falls into a trap.
-      </p>
-    </div>
+.training-section {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    margin-bottom: 20px;
+}
 
-    <!-- Actions / Steps -->
-    <div class="info-card">
-      <h3>What You Can Do</h3>
-      <ul class="steps-list">
-        <li>Move the mouse: Up ↑, Down ↓, Left ←, Right →</li>
-        <li>Bumping into a wall keeps position</li>
-        <li>Train with REINFORCE or provide Human Feedback</li>
-      </ul>
-    </div>
+.feedback-section {
+    background-color: #fff8dc;
+    padding: 25px;
+    border-radius: 8px;
+    border: 2px solid #ffd700;
+    margin-bottom: 20px;
+}
 
-    <!-- Rewards -->
-    <div class="reward-section">
-      <h3>Rewards</h3>
-      <div class="reward-grid">
-        <div class="reward-item positive">
-          <div class="reward-icon">🧀</div>
-          <div class="reward-details">
-            <span class="reward-action">Collect Cheese</span>
-            <span class="reward-value">+10</span>
-          </div>
+.trajectory-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.trajectory-box {
+    border: 3px solid #ddd;
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fff;
+    position: relative;
+}
+
+.trajectory-box:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+    transform: translateY(-2px);
+}
+
+.trajectory-box.selected {
+    border-color: #28a745;
+    background-color: #f8fff8;
+    box-shadow: 0 6px 12px rgba(40,167,69,0.3);
+}
+
+.trajectory-header {
+    background-color: #f8f9fa;
+    margin: -20px -20px 15px -20px;
+    padding: 15px 20px;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.trajectory-header h5 {
+    margin: 0;
+    color: #495057;
+    font-weight: bold;
+}
+
+.trajectory-stats {
+    margin-bottom: 15px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.stat-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.stat-value {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.grid-display {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    white-space: pre-line;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+    border: 1px solid #dee2e6;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.stats-display {
+    background-color: #e9ecef;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.btn {
+    margin: 5px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+
+.legend {
+    margin: 20px 0;
+    font-size: 14px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.legend-item {
+    display: inline-block;
+    margin-right: 20px;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+.feedback-controls {
+    text-align: center;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 2px solid #ffd700;
+}
+
+.comparison-instructions {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.status-message {
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.status-success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+.status-error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+.status-info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+</style>
+
+<div class="container-fluid">
+    <h1>Reinforcement Learning with Human Feedback</h1>
+    <p>Train a mouse to collect cheese using REINFORCE algorithm and provide human feedback to improve the policy.</p>
+    
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <h3>Control Panel</h3>
+        <button id="startTrainingBtn" class="btn btn-success">Start New Session</button>
+        <button id="resetBtn" class="btn btn-danger">Reset Training</button>
+        <div class="stats-display">
+            <div id="sessionInfo">No active session</div>
         </div>
-        <div class="reward-item negative">
-          <div class="reward-icon">❌</div>
-          <div class="reward-details">
-            <span class="reward-action">Enter Trap</span>
-            <span class="reward-value">-50</span>
-          </div>
-        </div>
-        <div class="reward-item neutral">
-          <div class="reward-icon">👣</div>
-          <div class="reward-details">
-            <span class="reward-action">Empty Cell / Hit Wall</span>
-            <span class="reward-value">-0.2</span>
-          </div>
-        </div>
-      </div>
     </div>
-
-    <!-- Actions -->
-    <div class="actions">
-      <a class="action-button primary">
-        Start Reinforcement Learning
-      </a>
-      <a class="action-button secondary">
-        Human Feedback
-      </a>
+    
+    <!-- Task 1: REINFORCE Training -->
+    <div class="training-section">
+        <h3>Task 1: REINFORCE Algorithm Training</h3>
+        <p>Train the mouse policy using the REINFORCE algorithm. The mouse learns to collect cheese while avoiding traps.</p>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Training Controls</h4>
+                <button id="trainEpisodeBtn" class="btn btn-primary" disabled>Train Single Episode</button>
+                <button id="trainBatchBtn" class="btn btn-primary" disabled>Train 10 Episodes</button>
+                
+                <div class="mt-3">
+                    <label for="batchSize">Batch Size:</label>
+                    <input type="number" id="batchSize" value="10" min="1" max="100" class="form-control" style="width: 100px; display: inline-block;">
+                </div>
+                
+                <div id="trainingStatus" class="mt-3"></div>
+                <div id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+                    </div>
+                    <div id="progressText">0/0 episodes</div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h4>Training Statistics</h4>
+                <div id="trainingStats">
+                    <div>Total Episodes: <span id="totalEpisodes">0</span></div>
+                    <div>Average Reward (last 10): <span id="avgReward">N/A</span></div>
+                    <div>Total Feedbacks: <span id="totalFeedbacks">0</span></div>
+                </div>
+                <canvas id="trainingChart" width="1800" height="200"></canvas>
+            </div>
+        </div>
     </div>
-  </div>
+    
+    <!-- Task 2: Human Feedback -->
+    <div class="feedback-section">
+        <h3>Task 2: Human Feedback Collection</h3>
+        <div class="comparison-instructions">
+            <strong>Instructions:</strong> Compare two mouse trajectories and select your preferred one. Consider factors like:
+            <ul>
+                <li>Total reward collected</li>
+                <li>Efficiency (fewer steps)</li>
+                <li>Cheese collection strategy</li>
+                <li>Trap avoidance</li>
+            </ul>
+        </div>
+        
+        <div class="text-center">
+            <button id="generateTrajectoriesBtn" class="btn btn-warning btn-lg" disabled>
+                🎯 Generate Trajectories for Comparison
+            </button>
+        </div>
+        
+        <div id="feedbackStatus" class="status-message" style="display: none;"></div>
+        
+        <div id="trajectoryComparison" style="display: none;">
+            <h4 class="text-center mb-4">Select Your Preferred Trajectory</h4>
+            
+            <div class="trajectory-comparison">
+                <div class="trajectory-box" id="trajectory1" data-trajectory="1">
+                    <div class="trajectory-header">
+                        <h5>🐭 Trajectory A</h5>
+                    </div>
+                    
+                    <div class="trajectory-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Total Reward:</span>
+                            <span class="stat-value" id="reward1">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Steps Taken:</span>
+                            <span class="stat-value" id="steps1">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Normal Cheese:</span>
+                            <span class="stat-value" id="normalCheese1">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Organic Cheese:</span>
+                            <span class="stat-value" id="organicCheese1">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-display" id="grid1">No data</div>
+                    
+                    <div class="text-center">
+                        <button class="btn btn-sm btn-info" onclick="showTrajectoryAnimation(1)">
+                            🎬 Show Animation
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="trajectory-box" id="trajectory2" data-trajectory="2">
+                    <div class="trajectory-header">
+                        <h5>🐭 Trajectory B</h5>
+                    </div>
+                    
+                    <div class="trajectory-stats">
+                        <div class="stat-row">
+                            <span class="stat-label">Total Reward:</span>
+                            <span class="stat-value" id="reward2">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Steps Taken:</span>
+                            <span class="stat-value" id="steps2">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Normal Cheese:</span>
+                            <span class="stat-value" id="normalCheese2">0</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">Organic Cheese:</span>
+                            <span class="stat-value" id="organicCheese2">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-display" id="grid2">No data</div>
+                    
+                    <div class="text-center">
+                        <button class="btn btn-sm btn-info" onclick="showTrajectoryAnimation(2)">
+                            🎬 Show Animation
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="feedback-controls">
+                <p><strong>Click on your preferred trajectory above, then submit your choice:</strong></p>
+                <button id="submitFeedbackBtn" class="btn btn-success btn-lg" disabled>
+                    ✅ Submit My Preference
+                </button>
+                <button id="generateNewBtn" class="btn btn-secondary btn-lg">
+                    🔄 Generate New Trajectories
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Legend -->
+    <div class="legend">
+        <h4>Grid Symbols</h4>
+        <div class="legend-item"><span class="legend-color" style="background-color: #007bff;"></span><strong>M</strong> = Mouse</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #28a745;"></span><strong>C</strong> = Normal Cheese</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #ffc107;"></span><strong>O</strong> = Organic Cheese</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #dc3545;"></span><strong>T</strong> = Trap</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #6c757d;"></span><strong>#</strong> = Wall</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: #f8f9fa;"></span><strong>.</strong> = Empty</div>
+    </div>
 </div>
 
-<style>
-/* Match Project 4 container and header styling */
-.box {
-  width: 90%;
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 30px;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  position: relative;
-  transform: none;
-  top: auto;
-  left: auto;
-  display: block;
-}
-.header-section {
-  text-align: center;
-  margin-bottom: 30px;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-}
-.main-title {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-.main-subtitle {
-  font-size: 1.2rem;
-  color: #666;
-}
-.project-description { color: #5a6b7b; line-height: 1.6; max-width: 800px; margin: 0 auto; }
+<!-- Animation Modal -->
+<div class="modal fade" id="animationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🎬 Trajectory Animation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <div class="grid-display" id="animationGrid" style="font-size: 16px;">Loading...</div>
+                    <div class="mt-3">
+                        <div><strong>Step:</strong> <span id="animationStep">0</span></div>
+                        <div><strong>Action:</strong> <span id="animationAction">-</span></div>
+                        <div><strong>Reward:</strong> <span id="animationReward">0</span></div>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-secondary" onclick="prevStep()">⏮️ Previous</button>
+                        <button class="btn btn-primary" onclick="playPause()" id="playPauseBtn">▶️ Play</button>
+                        <button class="btn btn-secondary" onclick="nextStep()">⏭️ Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-/* Cards and lists */
-.info-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  margin: 18px 0;
-}
-.steps-list { margin: 0; padding-left: 18px; color: #495057; }
-.steps-list li { margin: 8px 0; }
+<script>
+let currentSession = null;
+let currentTrajectories = null;
+let selectedTrajectory = null;
+let trainingChart = null;
+let animationData = null;
+let animationIndex = 0;
+let animationPlaying = false;
+let animationInterval = null;
 
-/* Rewards */
-.reward-section { margin: 24px 0; }
-.reward-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-top: 12px;
-}
-.reward-item {
-  display: flex; align-items: center; gap: 14px;
-  padding: 18px; border-radius: 10px; border-left: 5px solid;
-}
-.reward-item.positive { background: #d4edda; border-left-color: #28a745; }
-.reward-item.negative { background: #f8d7da; border-left-color: #dc3545; }
-.reward-item.neutral  { background: #e2e3e5; border-left-color: #6c757d; }
-.reward-icon { font-size: 1.8em; }
-.reward-action { font-weight: 600; color: #2c3e50; }
-.reward-value { font-weight: 700; }
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    initializeChart();
+    
+    // Event listeners
+    document.getElementById('startTrainingBtn').addEventListener('click', startTraining);
+    document.getElementById('resetBtn').addEventListener('click', resetTraining);
+    document.getElementById('trainEpisodeBtn').addEventListener('click', trainEpisode);
+    document.getElementById('trainBatchBtn').addEventListener('click', trainBatch);
+    document.getElementById('generateTrajectoriesBtn').addEventListener('click', generateTrajectories);
+    document.getElementById('submitFeedbackBtn').addEventListener('click', submitFeedback);
+    document.getElementById('generateNewBtn').addEventListener('click', generateTrajectories);
+    
+    // Trajectory selection
+    document.getElementById('trajectory1').addEventListener('click', () => selectTrajectory(1));
+    document.getElementById('trajectory2').addEventListener('click', () => selectTrajectory(2));
+    
+    // Check for existing session
+    checkSession();
+});
 
-/* Buttons */
-.actions {
-  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 12px;
+function initializeChart() {
+    const canvas = document.getElementById('trainingChart');
+    const ctx = canvas.getContext('2d');
+    trainingChart = { canvas, ctx, data: [] };
+    drawChart();
 }
-.action-button {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 12px 20px; border-radius: 8px; text-decoration: none;
-  font-weight: 600; transition: all 0.2s ease; cursor: pointer;
-}
-.action-button.primary {
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: #fff;
-}
-.action-button.secondary {
-  background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: #fff;
-}
-.action-button:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .box { width: 94%; padding: 20px; }
-  .main-title { font-size: 2.1em; }
+function drawChart() {
+    const { canvas, ctx, data } = trainingChart;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (data.length === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No training data yet', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Draw axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, 20);
+    ctx.lineTo(40, canvas.height - 30);
+    ctx.lineTo(canvas.width - 20, canvas.height - 30);
+    ctx.stroke();
+    
+    // Draw data
+    if (data.length > 1) {
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        for (let i = 0; i < data.length; i++) {
+            const x = 40 + (i / (data.length - 1)) * (canvas.width - 60);
+            const normalizedReward = (data[i] + 100) / 150; // Normalize rewards
+            const y = canvas.height - 30 - normalizedReward * (canvas.height - 50);
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Draw points
+        ctx.fillStyle = '#007bff';
+        for (let i = 0; i < data.length; i++) {
+            const x = 40 + (i / (data.length - 1)) * (canvas.width - 60);
+            const normalizedReward = (data[i] + 100) / 150;
+            const y = canvas.height - 30 - normalizedReward * (canvas.height - 50);
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+    
+    // Labels
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Episodes', canvas.width / 2, canvas.height - 5);
+    
+    ctx.save();
+    ctx.translate(15, canvas.height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Reward', 0, 0);
+    ctx.restore();
 }
-</style>
+
+async function startTraining() {
+    try {
+        const response = await fetch('/project5/start_training/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        
+        currentSession = data.session_id;
+        document.getElementById('sessionInfo').textContent = `Session: ${data.session_id.substring(0, 8)}...`;
+        
+        // Enable buttons
+        document.getElementById('trainEpisodeBtn').disabled = false;
+        document.getElementById('trainBatchBtn').disabled = false;
+        document.getElementById('generateTrajectoriesBtn').disabled = false;
+        
+        updateStats();
+    } catch (error) {
+        console.error('Error starting training:', error);
+        alert('Failed to start training session');
+    }
+}
+
+async function resetTraining() {
+    try {
+        await fetch('/project5/reset_training/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        currentSession = null;
+        currentTrajectories = null;
+        selectedTrajectory = null;
+        
+        document.getElementById('sessionInfo').textContent = 'No active session';
+        
+        // Disable buttons
+        document.getElementById('trainEpisodeBtn').disabled = true;
+        document.getElementById('trainBatchBtn').disabled = true;
+        document.getElementById('generateTrajectoriesBtn').disabled = true;
+        document.getElementById('submitFeedbackBtn').disabled = true;
+        
+        // Hide trajectory comparison
+        document.getElementById('trajectoryComparison').style.display = 'none';
+        
+        // Reset stats
+        document.getElementById('totalEpisodes').textContent = '0';
+        document.getElementById('avgReward').textContent = 'N/A';
+        document.getElementById('totalFeedbacks').textContent = '0';
+        
+        // Reset chart
+        trainingChart.data = [];
+        drawChart();
+        
+        document.getElementById('trainingStatus').textContent = '';
+    } catch (error) {
+        console.error('Error resetting training:', error);
+    }
+}
+
+async function trainEpisode() {
+    try {
+        document.getElementById('trainEpisodeBtn').disabled = true;
+        document.getElementById('trainingStatus').textContent = 'Training episode...';
+        
+        const response = await fetch('/project5/train_episode/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        
+        document.getElementById('trainingStatus').textContent = 
+            `Episode ${data.episode}: Reward = ${data.total_reward.toFixed(2)}, Loss = ${data.loss.toFixed(4)}, Steps = ${data.steps}`;
+        
+        await updateStats();
+        document.getElementById('trainEpisodeBtn').disabled = false;
+    } catch (error) {
+        console.error('Error training episode:', error);
+        document.getElementById('trainingStatus').textContent = 'Error training episode';
+        document.getElementById('trainEpisodeBtn').disabled = false;
+    }
+}
+
+async function trainBatch() {
+    try {
+        const batchSize = parseInt(document.getElementById('batchSize').value);
+        
+        document.getElementById('trainBatchBtn').disabled = true;
+        document.getElementById('progressContainer').style.display = 'block';
+        
+        // Simulate progress (real implementation would need WebSocket or polling)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += 100 / batchSize;
+            document.getElementById('progressFill').style.width = Math.min(progress, 100) + '%';
+            document.getElementById('progressText').textContent = 
+                `${Math.min(Math.ceil(progress / 100 * batchSize), batchSize)}/${batchSize} episodes`;
+        }, 200);
+        
+        const response = await fetch('/project5/train_batch/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ num_episodes: batchSize })
+        });
+        const data = await response.json();
+        
+        clearInterval(progressInterval);
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('progressText').textContent = `${batchSize}/${batchSize} episodes`;
+        
+        document.getElementById('trainingStatus').textContent = 
+            `Batch complete: Avg Reward = ${data.average_reward.toFixed(2)}, Avg Loss = ${data.average_loss.toFixed(4)}`;
+        
+        await updateStats();
+        
+        setTimeout(() => {
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('trainBatchBtn').disabled = false;
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error training batch:', error);
+        document.getElementById('trainingStatus').textContent = 'Error training batch';
+        document.getElementById('trainBatchBtn').disabled = false;
+        document.getElementById('progressContainer').style.display = 'none';
+    }
+}
+
+function countCheeseTypes(gridSequence) {
+    if (!gridSequence || gridSequence.length === 0) {
+        return { normal: 0, organic: 0 };
+    }
+    
+    let normalCheese = 0;
+    let organicCheese = 0;
+    
+    // Count cheese in initial grid
+    const initialGrid = gridSequence[0].grid;
+    if (initialGrid) {
+        normalCheese = (initialGrid.match(/C/g) || []).length;
+        organicCheese = (initialGrid.match(/O/g) || []).length;
+    }
+    
+    return { normal: normalCheese, organic: organicCheese };
+}
+
+function initializeChart() {
+    const canvas = document.getElementById('trainingChart');
+    const ctx = canvas.getContext('2d');
+    trainingChart = { canvas, ctx, data: [] };
+    drawChart();
+}
+
+function drawChart() {
+    const { canvas, ctx, data } = trainingChart;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (data.length === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No training data yet', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Draw axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, 20);
+    ctx.lineTo(40, canvas.height - 30);
+    ctx.lineTo(canvas.width - 20, canvas.height - 30);
+    ctx.stroke();
+    
+    // Draw data
+    if (data.length > 1) {
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        for (let i = 0; i < data.length; i++) {
+            const x = 40 + (i / (data.length - 1)) * (canvas.width - 60);
+            const normalizedReward = (data[i] + 100) / 150; // Normalize rewards
+            const y = canvas.height - 30 - normalizedReward * (canvas.height - 50);
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+        
+        // Draw points
+        ctx.fillStyle = '#007bff';
+        for (let i = 0; i < data.length; i++) {
+            const x = 40 + (i / (data.length - 1)) * (canvas.width - 60);
+            const normalizedReward = (data[i] + 100) / 150;
+            const y = canvas.height - 30 - normalizedReward * (canvas.height - 50);
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+    
+    // Labels
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Episodes', canvas.width / 2, canvas.height - 5);
+    
+    ctx.save();
+    ctx.translate(15, canvas.height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Reward', 0, 0);
+    ctx.restore();
+}
+
+async function startTraining() {
+    try {
+        const response = await fetch('/project5/start_training/', { method: 'POST' });
+        const data = await response.json();
+        
+        currentSession = data.session_id;
+        document.getElementById('sessionInfo').textContent = `Session: ${data.session_id.substring(0, 8)}...`;
+        
+        // Enable buttons
+        document.getElementById('trainEpisodeBtn').disabled = false;
+        document.getElementById('trainBatchBtn').disabled = false;
+        document.getElementById('generateTrajectoriesBtn').disabled = false;
+        
+        updateStats();
+    } catch (error) {
+        console.error('Error starting training:', error);
+        alert('Failed to start training session');
+    }
+}
+
+async function resetTraining() {
+    try {
+        await fetch('/project5/reset_training/', { method: 'POST' });
+        
+        currentSession = null;
+        currentTrajectories = null;
+        selectedTrajectory = null;
+        
+        document.getElementById('sessionInfo').textContent = 'No active session';
+        
+        // Disable buttons
+        document.getElementById('trainEpisodeBtn').disabled = true;
+        document.getElementById('trainBatchBtn').disabled = true;
+        document.getElementById('generateTrajectoriesBtn').disabled = true;
+        document.getElementById('submitFeedbackBtn').disabled = true;
+        
+        // Hide trajectory comparison
+        document.getElementById('trajectoryComparison').style.display = 'none';
+        
+        // Reset stats
+        document.getElementById('totalEpisodes').textContent = '0';
+        document.getElementById('avgReward').textContent = 'N/A';
+        document.getElementById('totalFeedbacks').textContent = '0';
+        
+        // Reset chart
+        trainingChart.data = [];
+        drawChart();
+        
+        document.getElementById('trainingStatus').textContent = '';
+    } catch (error) {
+        console.error('Error resetting training:', error);
+    }
+}
+
+async function trainEpisode() {
+    try {
+        document.getElementById('trainEpisodeBtn').disabled = true;
+        document.getElementById('trainingStatus').textContent = 'Training episode...';
+        
+        const response = await fetch('/project5/train_episode/', { method: 'POST' });
+        const data = await response.json();
+        
+        document.getElementById('trainingStatus').textContent = 
+            `Episode ${data.episode}: Reward = ${data.total_reward.toFixed(2)}, Loss = ${data.loss.toFixed(4)}, Steps = ${data.steps}`;
+        
+        await updateStats();
+        document.getElementById('trainEpisodeBtn').disabled = false;
+    } catch (error) {
+        console.error('Error training episode:', error);
+        document.getElementById('trainingStatus').textContent = 'Error training episode';
+        document.getElementById('trainEpisodeBtn').disabled = false;
+    }
+}
+
+async function trainBatch() {
+    try {
+        const batchSize = parseInt(document.getElementById('batchSize').value);
+        
+        document.getElementById('trainBatchBtn').disabled = true;
+        document.getElementById('progressContainer').style.display = 'block';
+        
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += 100 / batchSize;
+            document.getElementById('progressFill').style.width = Math.min(progress, 100) + '%';
+            document.getElementById('progressText').textContent = 
+                `${Math.min(Math.ceil(progress / 100 * batchSize), batchSize)}/${batchSize} episodes`;
+        }, 200);
+        
+        const response = await fetch('/project5/train_batch/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ num_episodes: batchSize })
+        });
+        const data = await response.json();
+        
+        clearInterval(progressInterval);
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('progressText').textContent = `${batchSize}/${batchSize} episodes`;
+        
+        document.getElementById('trainingStatus').textContent = 
+            `Batch complete: Avg Reward = ${data.average_reward.toFixed(2)}, Avg Loss = ${data.average_loss.toFixed(4)}`;
+        
+        await updateStats();
+        
+        setTimeout(() => {
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('trainBatchBtn').disabled = false;
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error training batch:', error);
+        document.getElementById('trainingStatus').textContent = 'Error training batch';
+        document.getElementById('trainBatchBtn').disabled = false;
+        document.getElementById('progressContainer').style.display = 'none';
+    }
+}
+
+async function updateStats() {
+    try {
+        const response = await fetch('/project5/training_stats/');
+        const data = await response.json();
+        
+        document.getElementById('totalEpisodes').textContent = data.total_episodes;
+        document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
+        
+        if (data.rewards.length > 0) {
+            const last10 = data.rewards.slice(-10);
+            const avg = last10.reduce((a, b) => a + b, 0) / last10.length;
+            document.getElementById('avgReward').textContent = avg.toFixed(2);
+            
+            // Update chart
+            trainingChart.data = data.rewards;
+            drawChart();
+        }
+    } catch (error) {
+        console.error('Error updating stats:', error);
+    }
+}
+
+async function checkSession() {
+    try {
+        const response = await fetch('/project5/training_stats/');
+        if (response.ok) {
+            const data = await response.json();
+            currentSession = data.session_id;
+            document.getElementById('sessionInfo').textContent = `Session: ${data.session_id.substring(0, 8)}...`;
+            
+            // Enable buttons
+            document.getElementById('trainEpisodeBtn').disabled = false;
+            document.getElementById('trainBatchBtn').disabled = false;
+            document.getElementById('generateTrajectoriesBtn').disabled = false;
+            
+            await updateStats();
+        }
+    } catch (error) {
+        // No active session
+    }
+}
+
+// Animation functions
+function showTrajectoryAnimation(trajectoryNum) {
+    if (!currentTrajectories) return;
+    
+    const trajectory = trajectoryNum === 1 ? currentTrajectories.trajectory1 : currentTrajectories.trajectory2;
+    animationData = trajectory.grid_sequence;
+    animationIndex = 0;
+    animationPlaying = false;
+    
+    updateAnimationDisplay();
+    
+    const modal = new bootstrap.Modal(document.getElementById('animationModal'));
+    modal.show();
+}
+
+function updateAnimationDisplay() {
+    if (!animationData || animationIndex >= animationData.length) return;
+    
+    const step = animationData[animationIndex];
+    document.getElementById('animationGrid').textContent = step.grid;
+    document.getElementById('animationStep').textContent = step.step;
+    document.getElementById('animationAction').textContent = step.action;
+    
+    const reward = step.action === 'done' ? 0 : -0.2;
+    document.getElementById('animationReward').textContent = reward;
+}
+
+function prevStep() {
+    if (animationIndex > 0) {
+        animationIndex--;
+        updateAnimationDisplay();
+    }
+}
+
+function nextStep() {
+    if (animationIndex < animationData.length - 1) {
+        animationIndex++;
+        updateAnimationDisplay();
+    }
+}
+
+function playPause() {
+    if (animationPlaying) {
+        clearInterval(animationInterval);
+        animationPlaying = false;
+        document.getElementById('playPauseBtn').textContent = '▶️ Play';
+    } else {
+        animationInterval = setInterval(() => {
+            if (animationIndex < animationData.length - 1) {
+                nextStep();
+            } else {
+                playPause();
+            }
+        }, 500);
+        animationPlaying = true;
+        document.getElementById('playPauseBtn').textContent = '⏸️ Pause';
+    }
+}
+
+async function generateTrajectories() {
+    try {
+        document.getElementById('generateTrajectoriesBtn').disabled = true;
+        showStatus('Generating trajectories...', 'info');
+        
+        const response = await fetch('/project5/generate_trajectories/', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        currentTrajectories = data;
+        selectedTrajectory = null;
+        
+        // Update UI
+        document.getElementById('reward1').textContent = data.trajectory1.total_reward.toFixed(2);
+        document.getElementById('steps1').textContent = data.trajectory1.steps;
+        document.getElementById('reward2').textContent = data.trajectory2.total_reward.toFixed(2);
+        document.getElementById('steps2').textContent = data.trajectory2.steps;
+        
+        // Count cheese types
+        const cheese1 = countCheeseTypes(data.trajectory1.grid_sequence);
+        const cheese2 = countCheeseTypes(data.trajectory2.grid_sequence);
+        
+        document.getElementById('normalCheese1').textContent = cheese1.normal;
+        document.getElementById('organicCheese1').textContent = cheese1.organic;
+        document.getElementById('normalCheese2').textContent = cheese2.normal;
+        document.getElementById('organicCheese2').textContent = cheese2.organic;
+        
+        // Show final grids
+        if (data.trajectory1.grid_sequence && data.trajectory1.grid_sequence.length > 0) {
+            const finalGrid1 = data.trajectory1.grid_sequence[data.trajectory1.grid_sequence.length - 1];
+            document.getElementById('grid1').textContent = finalGrid1.grid;
+        }
+        
+        if (data.trajectory2.grid_sequence && data.trajectory2.grid_sequence.length > 0) {
+            const finalGrid2 = data.trajectory2.grid_sequence[data.trajectory2.grid_sequence.length - 1];
+            document.getElementById('grid2').textContent = finalGrid2.grid;
+        }
+        
+        // Reset selection
+        document.getElementById('trajectory1').classList.remove('selected');
+        document.getElementById('trajectory2').classList.remove('selected');
+        document.getElementById('submitFeedbackBtn').disabled = true;
+        
+        document.getElementById('trajectoryComparison').style.display = 'block';
+        showStatus('Trajectories generated! Click on your preferred trajectory.', 'success');
+        
+    } catch (error) {
+        console.error('Error generating trajectories:', error);
+        showStatus(`Error generating trajectories: ${error.message}`, 'error');
+    } finally {
+        document.getElementById('generateTrajectoriesBtn').disabled = false;
+    }
+}
+
+function selectTrajectory(trajectoryNum) {
+    selectedTrajectory = trajectoryNum;
+    
+    document.getElementById('trajectory1').classList.toggle('selected', trajectoryNum === 1);
+    document.getElementById('trajectory2').classList.toggle('selected', trajectoryNum === 2);
+    
+    document.getElementById('submitFeedbackBtn').disabled = false;
+    
+    const trajectoryName = trajectoryNum === 1 ? 'A' : 'B';
+    showStatus(`Selected Trajectory ${trajectoryName}. Click "Submit My Preference" to save your choice.`, 'info');
+}
+
+async function submitFeedback() {
+    if (!selectedTrajectory || !currentTrajectories) return;
+    
+    try {
+        document.getElementById('submitFeedbackBtn').disabled = true;
+        showStatus('Submitting feedback...', 'info');
+        
+        const response = await fetch('/project5/submit_feedback/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                trajectory1_id: currentTrajectories.trajectory1.id,
+                trajectory2_id: currentTrajectories.trajectory2.id,
+                preferred: selectedTrajectory
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        const trajectoryName = selectedTrajectory === 1 ? 'A' : 'B';
+        showStatus(`✅ Feedback submitted! You preferred Trajectory ${trajectoryName}.`, 'success');
+        
+        // Hide comparison and update stats
+        setTimeout(() => {
+            document.getElementById('trajectoryComparison').style.display = 'none';
+            updateStats();
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error submitting feedback:', error);
+        showStatus(`Error submitting feedback: ${error.message}`, 'error');
+        document.getElementById('submitFeedbackBtn').disabled = false;
+    }
+}
+
+function showStatus(message, type) {
+    const statusDiv = document.getElementById('feedbackStatus');
+    statusDiv.className = `status-message status-${type}`;
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+    
+    // Auto-hide success/info messages after 5 seconds
+    if (type !== 'error') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+
+async function updateStats() {
+    try {
+        const response = await fetch('/project5/training_stats/');
+        const data = await response.json();
+        
+        document.getElementById('totalEpisodes').textContent = data.total_episodes;
+        document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
+        
+        if (data.rewards.length > 0) {
+            const last10 = data.rewards.slice(-10);
+            const avg = last10.reduce((a, b) => a + b, 0) / last10.length;
+            document.getElementById('avgReward').textContent = avg.toFixed(2);
+            
+            // Update chart
+            trainingChart.data = data.rewards;
+            drawChart();
+        }
+    } catch (error) {
+        console.error('Error updating stats:', error);
+    }
+}
+
+async function checkSession() {
+    try {
+        const response = await fetch('/project5/training_stats/');
+        if (response.ok) {
+            const data = await response.json();
+            currentSession = data.session_id;
+            document.getElementById('sessionInfo').textContent = `Session: ${data.session_id.substring(0, 8)}...`;
+            
+            // Enable buttons
+            document.getElementById('trainEpisodeBtn').disabled = false;
+            document.getElementById('trainBatchBtn').disabled = false;
+            document.getElementById('generateTrajectoriesBtn').disabled = false;
+            
+            await updateStats();
+        }
+    } catch (error) {
+        // No active session
+    }
+}
+
+// Add CSRF token helper function
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Animation functions
+function showTrajectoryAnimation(trajectoryNum) {
+    if (!currentTrajectories) return;
+    
+    const trajectory = trajectoryNum === 1 ? currentTrajectories.trajectory1 : currentTrajectories.trajectory2;
+    animationData = trajectory.grid_sequence;
+    animationIndex = 0;
+    animationPlaying = false;
+    
+    updateAnimationDisplay();
+    
+    const modal = new bootstrap.Modal(document.getElementById('animationModal'));
+    modal.show();
+}
+
+function updateAnimationDisplay() {
+    if (!animationData || animationIndex >= animationData.length) return;
+    
+    const step = animationData[animationIndex];
+    document.getElementById('animationGrid').textContent = step.grid;
+    document.getElementById('animationStep').textContent = step.step;
+    document.getElementById('animationAction').textContent = step.action;
+    
+    // Calculate reward (simplified)
+    const reward = step.action === 'done' ? 0 : -0.2; // This is simplified
+    document.getElementById('animationReward').textContent = reward;
+}
+
+function prevStep() {
+    if (animationIndex > 0) {
+        animationIndex--;
+        updateAnimationDisplay();
+    }
+}
+
+function nextStep() {
+    if (animationIndex < animationData.length - 1) {
+        animationIndex++;
+        updateAnimationDisplay();
+    }
+}
+
+function playPause() {
+    if (animationPlaying) {
+        clearInterval(animationInterval);
+        animationPlaying = false;
+        document.getElementById('playPauseBtn').textContent = 'Play';
+    } else {
+        animationInterval = setInterval(() => {
+            if (animationIndex < animationData.length - 1) {
+                nextStep();
+            } else {
+                playPause(); // Stop at end
+            }
+        }, 500);
+        animationPlaying = true;
+        document.getElementById('playPauseBtn').textContent = 'Pause';
+    }
+}
+</script>
 {% endblock %}
