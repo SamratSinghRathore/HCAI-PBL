@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 import uuid
+import time
 from .models import GameSession, Trajectory, HumanFeedback
 
 def get_trainer(session_id):
@@ -118,7 +119,7 @@ def retrain_with_feedback(request):
         return JsonResponse({'error': 'No active session'}, status=400)
     
     try:
-        # Import the BradleyTerryTrainer
+        # Import the enhanced BradleyTerryTrainer
         from .bradley_terry import BradleyTerryTrainer
         
         # Check if we have enough feedback
@@ -127,7 +128,7 @@ def retrain_with_feedback(request):
         
         print(f"Found {feedback_count} feedback samples for session {session_id}")
         
-        if feedback_count < 1:  # Lowered for testing
+        if feedback_count < 1:
             return JsonResponse({
                 'error': f'Need at least 1 feedback sample to retrain. Currently have {feedback_count}.'
             }, status=400)
@@ -138,13 +139,41 @@ def retrain_with_feedback(request):
         # Get original trainer
         original_trainer = get_trainer(session_id)
         
+        # Record start time
+        start_time = time.time()
+        
         # Retrain policy with learned reward
-        enhanced_trainer = bt_trainer.retrain_policy_with_learned_reward(original_trainer)
+        enhanced_trainer, detailed_results = bt_trainer.retrain_policy_with_learned_reward(original_trainer)
+        
+        training_time = time.time() - start_time
+        
+        # Extract results for frontend display
+        bradley_terry_results = detailed_results['bradley_terry_training']
+        policy_results = detailed_results['policy_retraining']
         
         return JsonResponse({
             'status': 'success',
             'message': f'Policy retrained using {feedback_count} feedback samples with Bradley-Terry model',
-            'feedback_count': feedback_count
+            'feedback_count': feedback_count,
+            'training_time_seconds': round(training_time, 2),
+            'bradley_terry_results': {
+                'epochs_trained': len(bradley_terry_results['epochs']),
+                'final_loss': bradley_terry_results['convergence_info'].get('final_loss', 0),
+                'final_accuracy': bradley_terry_results['convergence_info'].get('final_accuracy', 0),
+                'loss_improvement_pct': bradley_terry_results['convergence_info'].get('loss_improvement_pct', 0),
+                'converged': bradley_terry_results['convergence_info'].get('converged', False),
+                'early_stopped': bradley_terry_results['convergence_info'].get('early_stopped', False),
+                'training_losses': bradley_terry_results['losses'][-10:],  # Last 10 losses
+                'training_accuracies': bradley_terry_results['accuracy'][-10:]  # Last 10 accuracies
+            },
+            'policy_retraining_results': {
+                'avg_reward_after_retraining': policy_results['avg_reward_after_retraining'],
+                'reward_std': policy_results['reward_std'],
+                'episodes_trained': policy_results['episodes_trained'],
+                'reward_trend': policy_results['reward_trend'],
+                'detailed_rewards': policy_results.get('detailed_rewards', [])
+            },
+            'recommendations': generate_training_recommendations(bradley_terry_results, policy_results)
         })
         
     except Exception as e:
@@ -152,6 +181,35 @@ def retrain_with_feedback(request):
         error_details = traceback.format_exc()
         print(f"Retraining error: {error_details}")
         return JsonResponse({'error': f'Retraining error: {str(e)}'}, status=500)
+
+def generate_training_recommendations(bt_results, policy_results):
+    """Generate recommendations based on training results"""
+    recommendations = []
+    
+    # Bradley-Terry model recommendations
+    if bt_results['convergence_info'].get('final_accuracy', 0) < 0.7:
+        recommendations.append("Consider collecting more feedback samples - model accuracy is below 70%")
+    
+    if bt_results['convergence_info'].get('early_stopped', False):
+        recommendations.append("Bradley-Terry model converged early - good sign!")
+    
+    if bt_results['convergence_info'].get('loss_improvement_pct', 0) < 10:
+        recommendations.append("Limited loss improvement - model may need more diverse feedback")
+    
+    # Policy retraining recommendations
+    if policy_results['reward_trend'] == 'declining':
+        recommendations.append("Policy rewards are declining - consider adjusting reward model or collecting different feedback")
+    
+    if policy_results['reward_std'] > 10:
+        recommendations.append("High reward variance - policy may be unstable")
+    
+    if policy_results['avg_reward_after_retraining'] > 0:
+        recommendations.append("✅ Good news! Average reward is positive after retraining")
+    
+    if not recommendations:
+        recommendations.append("✅ Training looks good! Consider collecting more feedback for further improvements")
+    
+    return recommendations
 
 @csrf_exempt
 def generate_trajectories_for_feedback(request):

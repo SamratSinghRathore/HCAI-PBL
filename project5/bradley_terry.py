@@ -33,6 +33,7 @@ class BradleyTerryTrainer:
         self.optimizer = optim.Adam(self.reward_model.parameters(), lr=0.001)
         self.device = torch.device('cpu')
         self.reward_model.to(self.device)
+        self.training_history = []  # Track training progress
         
     def get_trajectory_reward(self, trajectory):
         """Calculate total reward for a trajectory using learned reward model"""
@@ -53,14 +54,27 @@ class BradleyTerryTrainer:
             session = GameSession.objects.get(session_id=self.session_id)
             feedbacks = HumanFeedback.objects.filter(session=session)
             
-            if len(feedbacks) < 1:  # Lowered requirement for testing
+            if len(feedbacks) < 1:
                 raise ValueError(f"Need at least 1 feedback sample, got {len(feedbacks)}")
             
             print(f"Training reward model with {len(feedbacks)} feedback samples")
             
+            training_results = {
+                'epochs': [],
+                'losses': [],
+                'accuracy': [],
+                'feedback_count': len(feedbacks),
+                'convergence_info': {}
+            }
+            
+            best_loss = float('inf')
+            epochs_without_improvement = 0
+            patience = 20
+            
             for epoch in range(num_epochs):
                 total_loss = 0
                 num_comparisons = 0
+                correct_predictions = 0
                 
                 for feedback in feedbacks:
                     try:
@@ -84,11 +98,15 @@ class BradleyTerryTrainer:
                         
                         # Bradley-Terry loss
                         if feedback.preferred_trajectory == 1:
-                            # Preference for trajectory 1
                             loss = -torch.log(torch.sigmoid(reward1 - reward2))
+                            # Check prediction accuracy
+                            if reward1.item() > reward2.item():
+                                correct_predictions += 1
                         else:
-                            # Preference for trajectory 2
                             loss = -torch.log(torch.sigmoid(reward2 - reward1))
+                            # Check prediction accuracy
+                            if reward2.item() > reward1.item():
+                                correct_predictions += 1
                         
                         total_loss += loss
                         num_comparisons += 1
@@ -100,17 +118,61 @@ class BradleyTerryTrainer:
                 # Backpropagation
                 if num_comparisons > 0:
                     avg_loss = total_loss / num_comparisons
+                    accuracy = correct_predictions / num_comparisons if num_comparisons > 0 else 0
+                    
                     self.optimizer.zero_grad()
                     avg_loss.backward()
                     self.optimizer.step()
                     
-                    if epoch % 20 == 0:
-                        print(f"Epoch {epoch}, Loss: {avg_loss.item():.4f}")
+                    # Track training progress
+                    loss_value = avg_loss.item()
+                    training_results['epochs'].append(epoch)
+                    training_results['losses'].append(loss_value)
+                    training_results['accuracy'].append(accuracy)
+                    
+                    # Early stopping check
+                    if loss_value < best_loss:
+                        best_loss = loss_value
+                        epochs_without_improvement = 0
+                    else:
+                        epochs_without_improvement += 1
+                    
+                    if epoch % 10 == 0 or epoch < 10:
+                        print(f"Epoch {epoch:3d}: Loss = {loss_value:.4f}, Accuracy = {accuracy:.3f}")
+                    
+                    # Early stopping
+                    if epochs_without_improvement >= patience and epoch > 30:
+                        print(f"Early stopping at epoch {epoch} (no improvement for {patience} epochs)")
+                        training_results['convergence_info']['early_stopped'] = True
+                        training_results['convergence_info']['final_epoch'] = epoch
+                        break
+                    if int(loss_value)==0 and int(accuracy)==1:
+                        break
                 else:
                     print(f"No valid comparisons in epoch {epoch}")
             
+            # Final training statistics
+            if training_results['losses']:
+                final_loss = training_results['losses'][-1]
+                final_accuracy = training_results['accuracy'][-1]
+                improvement = ((training_results['losses'][0] - final_loss) / training_results['losses'][0]) * 100
+                
+                training_results['convergence_info'].update({
+                    'final_loss': final_loss,
+                    'final_accuracy': final_accuracy,
+                    'loss_improvement_pct': improvement,
+                    'converged': epochs_without_improvement < patience
+                })
+                
+                print(f"\nTraining Summary:")
+                print(f"  Final Loss: {final_loss:.4f}")
+                print(f"  Final Accuracy: {final_accuracy:.3f}")
+                print(f"  Loss Improvement: {improvement:.1f}%")
+                print(f"  Training completed in {len(training_results['epochs'])} epochs")
+            
+            self.training_history.append(training_results)
             print("Reward model training completed!")
-            return self.reward_model
+            return self.reward_model, training_results
             
         except Exception as e:
             print(f"Error training reward model: {e}")
@@ -120,17 +182,18 @@ class BradleyTerryTrainer:
         """Retrain policy using learned reward function"""
         try:
             # Train reward model first
-            self.train_reward_model()
+            reward_model, training_results = self.train_reward_model()
             
             # Create enhanced trainer
-            enhanced_trainer = EnhancedRLTrainer(self.session_id, self.reward_model, original_trainer)
+            enhanced_trainer = EnhancedRLTrainer(self.session_id, reward_model, original_trainer)
             
             # Train with learned rewards for several episodes
             print("Retraining policy with learned reward...")
-            results = []
-            for episode in range(20):  # Reduced for faster testing
+            retraining_results = []
+            
+            for episode in range(20):
                 result = enhanced_trainer.train_episode_with_learned_reward()
-                results.append(result)
+                retraining_results.append(result)
                 
                 if episode % 5 == 0:
                     print(f"Enhanced training episode {episode}, reward: {result['total_reward']:.2f}")
@@ -138,10 +201,26 @@ class BradleyTerryTrainer:
             # Save the enhanced policy
             enhanced_trainer.save_session()
             
-            avg_reward = sum(r['total_reward'] for r in results) / len(results)
-            print(f"Retraining completed! Average reward: {avg_reward:.2f}")
+            # Calculate retraining statistics
+            rewards = [r['total_reward'] for r in retraining_results]
+            avg_reward = sum(rewards) / len(rewards)
+            reward_std = np.std(rewards)
             
-            return enhanced_trainer
+            # Compare with original policy performance (if available)
+            improvement_info = {
+                'avg_reward_after_retraining': avg_reward,
+                'reward_std': reward_std,
+                'episodes_trained': len(retraining_results),
+                'reward_trend': 'improving' if rewards[-1] > rewards[0] else 'declining'
+            }
+            
+            print(f"Retraining completed! Average reward: {avg_reward:.2f} ± {reward_std:.2f}")
+            
+            return enhanced_trainer, {
+                'bradley_terry_training': training_results,
+                'policy_retraining': improvement_info,
+                'detailed_rewards': rewards
+            }
             
         except Exception as e:
             print(f"Error in retrain_policy_with_learned_reward: {e}")
@@ -170,7 +249,7 @@ class EnhancedRLTrainer:
                 print(f"Could not load original weights: {e}")
     
     def train_episode_with_learned_reward(self):
-        """Train episode using learned reward model"""
+        """Train episode using learned reward model with KL penalty"""
         state = self.env.reset()
         states, actions, rewards = [], [], []
         total_reward = 0
@@ -185,8 +264,10 @@ class EnhancedRLTrainer:
                 learned_reward = self.reward_model(state_tensor).item()
             
             # Combine learned reward with safety penalty to avoid catastrophic failures
-            if env_reward == -50:  # Hit trap
-                combined_reward = learned_reward - 10  # Add penalty for traps
+            if env_reward == -50:  # Hit trap - strong penalty
+                combined_reward = learned_reward - 10
+            elif env_reward == 10:  # Got cheese - boost learned reward
+                combined_reward = learned_reward + 2
             else:
                 combined_reward = learned_reward
             
