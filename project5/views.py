@@ -107,8 +107,6 @@ def train_batch(request):
     except Exception as e:
         return JsonResponse({'error': f'Batch training error: {str(e)}'}, status=500)
 
-# Add this new view to your existing views.py
-
 @csrf_exempt
 def retrain_with_feedback(request):
     """Retrain policy using collected human feedback and Bradley-Terry model"""
@@ -120,15 +118,18 @@ def retrain_with_feedback(request):
         return JsonResponse({'error': 'No active session'}, status=400)
     
     try:
+        # Import the BradleyTerryTrainer
         from .bradley_terry import BradleyTerryTrainer
         
         # Check if we have enough feedback
         session = GameSession.objects.get(session_id=session_id)
         feedback_count = HumanFeedback.objects.filter(session=session).count()
         
-        if feedback_count < 5:
+        print(f"Found {feedback_count} feedback samples for session {session_id}")
+        
+        if feedback_count < 1:  # Lowered for testing
             return JsonResponse({
-                'error': f'Need at least 5 feedback samples to retrain. Currently have {feedback_count}.'
+                'error': f'Need at least 1 feedback sample to retrain. Currently have {feedback_count}.'
             }, status=400)
         
         # Initialize Bradley-Terry trainer
@@ -140,16 +141,16 @@ def retrain_with_feedback(request):
         # Retrain policy with learned reward
         enhanced_trainer = bt_trainer.retrain_policy_with_learned_reward(original_trainer)
         
-        # Save the enhanced policy
-        enhanced_trainer.save_session()
-        
         return JsonResponse({
             'status': 'success',
-            'message': f'Policy retrained using {feedback_count} feedback samples',
+            'message': f'Policy retrained using {feedback_count} feedback samples with Bradley-Terry model',
             'feedback_count': feedback_count
         })
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Retraining error: {error_details}")
         return JsonResponse({'error': f'Retraining error: {str(e)}'}, status=500)
 
 @csrf_exempt
@@ -235,14 +236,16 @@ def submit_feedback(request):
             preferred_trajectory=preferred
         )
         
-        # Verify feedback was saved
+        # Get updated feedback count
         feedback_count = HumanFeedback.objects.filter(session=session).count()
+        
+        print(f"Feedback saved. Total feedback count: {feedback_count}")
         
         return JsonResponse({
             'status': 'feedback_saved', 
             'feedback_id': feedback.id,
             'preferred': preferred,
-            'total_feedbacks': feedback_count  # Add this
+            'total_feedbacks': feedback_count
         })
     except Exception as e:
         return JsonResponse({'error': f'Feedback submission error: {str(e)}'}, status=500)
@@ -260,12 +263,15 @@ def get_training_stats(request):
         
         rewards = [t.total_reward for t in trajectories]
         episodes = [t.episode for t in trajectories]
+        feedback_count = feedbacks.count()
+        
+        print(f"Stats: {len(episodes)} episodes, {feedback_count} feedbacks")
         
         return JsonResponse({
             'episodes': episodes,
             'rewards': rewards,
             'total_episodes': session.current_episode,
-            'total_feedbacks': feedbacks.count(),
+            'total_feedbacks': feedback_count,
             'session_id': session_id
         })
     except GameSession.DoesNotExist:
@@ -293,3 +299,44 @@ def reset_training(request):
         del request.session['rl_session_id']
     
     return JsonResponse({'status': 'reset_complete'})
+
+def debug_feedback(request):
+    """Debug view to check feedback storage"""
+    session_id = request.session.get('rl_session_id')
+    if not session_id:
+        return JsonResponse({'error': 'No active session'}, status=400)
+    
+    try:
+        session = GameSession.objects.get(session_id=session_id)
+        feedbacks = HumanFeedback.objects.filter(session=session)
+        trajectories = Trajectory.objects.filter(session=session)
+        
+        feedback_data = []
+        for feedback in feedbacks:
+            feedback_data.append({
+                'id': feedback.id,
+                'trajectory1_id': feedback.trajectory1.id,
+                'trajectory2_id': feedback.trajectory2.id,
+                'preferred': feedback.preferred_trajectory,
+                'created_at': feedback.created_at.isoformat()
+            })
+        
+        trajectory_data = []
+        for traj in trajectories:
+            trajectory_data.append({
+                'id': traj.id,
+                'episode': traj.episode,
+                'total_reward': traj.total_reward,
+                'created_at': traj.created_at.isoformat()
+            })
+        
+        return JsonResponse({
+            'session_id': session_id,
+            'feedbacks': feedback_data,
+            'feedback_count': len(feedback_data),
+            'trajectories': trajectory_data,
+            'trajectory_count': len(trajectory_data)
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

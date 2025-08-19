@@ -357,6 +357,7 @@
         <div class="comparison-instructions">
             <strong>Instructions:</strong> Compare two mouse trajectories and select your preferred one. Consider factors like:
             <ul>
+                <li>Give preference to the trajectory options where the mouse avoids the Organic Cheese</li>
                 <li>Total reward collected</li>
                 <li>Efficiency (fewer steps)</li>
                 <li>Cheese collection strategy</li>
@@ -455,10 +456,6 @@
             </div>
         </div>
     </div>
-    </div>
-    <h2>Total Feedbacks Submitted Already: <span id="totalFeedbacks">0</span></h2>
-    </div>
-    <!-- Legend -->
     <div class="legend">
         <h4>Grid Symbols</h4>
         <div class="legend-item"><span class="legend-color" style="background-color: #007bff;"></span><strong>M</strong> = Mouse</div>
@@ -468,6 +465,10 @@
         <div class="legend-item"><span class="legend-color" style="background-color: #6c757d;"></span><strong>#</strong> = Wall</div>
         <div class="legend-item"><span class="legend-color" style="background-color: #f8f9fa;"></span><strong>.</strong> = Empty</div>
     </div>
+    </div>
+    <h2 style="color: white;">Total Feedbacks Submitted Already: <span id="totalFeedbacks">0</span></h2>
+    </div>
+    <!-- Legend -->
 </div>
 
 <!-- Animation Modal -->
@@ -1053,7 +1054,7 @@ async function trainBatch() {
 async function retrainWithFeedback() {
     try {
         document.getElementById('retrainPolicyBtn').disabled = true;
-        showRetrainStatus('Retraining policy with collected feedback...', 'info');
+        showRetrainStatus('Initializing Bradley-Terry model training...', 'info');
         
         const response = await simpleFetch('/project5/retrain_with_feedback/', {
             method: 'POST'
@@ -1065,16 +1066,24 @@ async function retrainWithFeedback() {
         }
         
         const data = await response.json();
-        showRetrainStatus(data.message, 'success');
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        showRetrainStatus(`✅ ${data.message}`, 'success');
         
         // Update stats after retraining
         await updateStats();
         
     } catch (error) {
         console.error('Error retraining policy:', error);
-        showRetrainStatus(`Error: ${error.message}`, 'error');
+        showRetrainStatus(`❌ Error: ${error.message}`, 'error');
     } finally {
-        document.getElementById('retrainPolicyBtn').disabled = false;
+        // Re-enable button after some time
+        setTimeout(() => {
+            document.getElementById('retrainPolicyBtn').disabled = false;
+        }, 5000);
     }
 }
 
@@ -1096,17 +1105,24 @@ async function updateStats() {
         const response = await fetch('/project5/training_stats/');
         const data = await response.json();
         
+        console.log('Stats data:', data); // Debug logging
+        
         document.getElementById('totalEpisodes').textContent = data.total_episodes;
         document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
         
-        // Enable retrain button if enough feedback
-        document.getElementById('retrainPolicyBtn').disabled = data.total_feedbacks < 5;
+        // Enable retrain button if ANY feedback exists (lowered threshold for testing)
+        const retrainBtn = document.getElementById('retrainPolicyBtn');
+        if (retrainBtn) {
+            retrainBtn.disabled = data.total_feedbacks < 1;
+            console.log(`Retrain button disabled: ${retrainBtn.disabled}, feedbacks: ${data.total_feedbacks}`);
+        }
         
         if (data.rewards.length > 0) {
             const last10 = data.rewards.slice(-10);
             const avg = last10.reduce((a, b) => a + b, 0) / last10.length;
             document.getElementById('avgReward').textContent = avg.toFixed(2);
             
+            // Update chart
             trainingChart.data = data.rewards;
             drawChart();
         }
@@ -1370,13 +1386,20 @@ async function submitFeedback() {
             throw new Error(data.error);
         }
 
-        // Directly update the feedback counter using the server's response.
+        // Update the feedback counter using the server's response
         document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
         
-        const trajectoryName = selectedTrajectory === 1 ? 'A' : 'B';
-        showStatus(`✅ Feedback submitted! You preferred Trajectory ${trajectoryName}.`, 'success');
+        // Immediately enable retrain button if we have feedback
+        const retrainBtn = document.getElementById('retrainPolicyBtn');
+        if (retrainBtn && data.total_feedbacks >= 1) {
+            retrainBtn.disabled = false;
+            console.log('Retrain button enabled after feedback submission');
+        }
         
-        // This will update the chart and other stats.
+        const trajectoryName = selectedTrajectory === 1 ? 'A' : 'B';
+        showStatus(`✅ Feedback submitted! You preferred Trajectory ${trajectoryName}. You can now retrain the policy!`, 'success');
+        
+        // Update stats to ensure everything is in sync
         setTimeout(async () => {
             await updateStats();
         }, 500);
@@ -1384,7 +1407,7 @@ async function submitFeedback() {
         // Hide comparison after delay
         setTimeout(() => {
             document.getElementById('trajectoryComparison').style.display = 'none';
-        }, 2000);
+        }, 3000); // Extended delay to show success message
         
     } catch (error) {
         console.error('Error submitting feedback:', error);
