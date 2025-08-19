@@ -287,6 +287,35 @@
     margin: 15px 0;
 }
 
+#bradleyTerryResults {
+    border: 2px solid #007bff;
+    background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+}
+
+#bradleyTerryResults h3 {
+    color: #0056b3;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+#recommendationsList {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+#recommendationsList li {
+    list-style: none;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#recommendationsList li:last-child {
+    border-bottom: none;
+}
+
 .status-success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
 .status-error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
 .status-info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
@@ -512,7 +541,7 @@
 </div>
 
 <div class="training-section">
-    <h3>Task 2 & 3: Retrain Policy with Human Feedback</h3>
+    <h2>Retrain Policy with Human Feedback</h2>
     <p>Use collected human feedback to retrain the policy using Bradley-Terry model.</p>
 
     <button id="retrainPolicyBtn" class="btn btn-success btn-lg" disabled>
@@ -520,6 +549,40 @@
     </button>
 
     <div id="retrainStatus" class="status-message" style="display: none;"></div>
+</div>
+<div id="bradleyTerryResults" class="training-section" style="display: none;">
+    <h3>Bradley-Terry Model Training Results</h3>
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Model Performance</h4>
+            <div class="stats-display">
+                <div><strong>Training Epochs:</strong> <span id="btEpochs">-</span></div>
+                <div><strong>Final Loss:</strong> <span id="btFinalLoss">-</span></div>
+                <div><strong>Final Accuracy:</strong> <span id="btFinalAccuracy">-</span></div>
+                <div><strong>Loss Improvement:</strong> <span id="btLossImprovement">-</span>%</div>
+                <div><strong>Converged:</strong> <span id="btConverged">-</span></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <h4>Policy Retraining Results</h4>
+            <div class="stats-display">
+                <div><strong>Avg Reward After Retraining:</strong> <span id="avgRewardAfter">-</span></div>
+                <div><strong>Reward Std Dev:</strong> <span id="rewardStd">-</span></div>
+                <div><strong>Training Episodes:</strong> <span id="retrainingEpisodes">-</span></div>
+                <div><strong>Reward Trend:</strong> <span id="rewardTrend">-</span></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <h4>Training Progress</h4>
+        <canvas id="bradleyTerryChart" width="800" height="300"></canvas>
+    </div>
+    
+    <div class="mt-4" id="trainingRecommendations">
+        <h4>Recommendations</h4>
+        <ul id="recommendationsList"></ul>
+    </div>
 </div>
 
 <script>
@@ -1070,9 +1133,12 @@ async function retrainWithFeedback() {
         if (data.error) {
             throw new Error(data.error);
         }
-        
+
         showRetrainStatus(`✅ ${data.message}`, 'success');
-        
+
+        // Display Bradley-Terry results
+        displayBradleyTerryResults(data);
+
         // Update stats after retraining
         await updateStats();
         
@@ -1522,6 +1588,126 @@ function playPause() {
         animationPlaying = true;
         document.getElementById('playPauseBtn').textContent = 'Pause';
     }
+}
+
+function displayBradleyTerryResults(data) {
+    // Show the results section
+    document.getElementById('bradleyTerryResults').style.display = 'block';
+    
+    // Update Bradley-Terry model stats
+    const btResults = data.bradley_terry_results;
+    document.getElementById('btEpochs').textContent = btResults.epochs_trained;
+    document.getElementById('btFinalLoss').textContent = btResults.final_loss?.toFixed(4) || 'N/A';
+    document.getElementById('btFinalAccuracy').textContent = btResults.final_accuracy?.toFixed(3) || 'N/A';
+    document.getElementById('btLossImprovement').textContent = btResults.loss_improvement_pct?.toFixed(1) || 'N/A';
+    document.getElementById('btConverged').textContent = btResults.converged ? '✅ Yes' : '⚠️ No';
+    
+    // Update policy retraining stats
+    const policyResults = data.policy_retraining_results;
+    document.getElementById('avgRewardAfter').textContent = policyResults.avg_reward_after_retraining?.toFixed(2) || 'N/A';
+    document.getElementById('rewardStd').textContent = policyResults.reward_std?.toFixed(2) || 'N/A';
+    document.getElementById('retrainingEpisodes').textContent = policyResults.episodes_trained || 'N/A';
+    
+    const trendSpan = document.getElementById('rewardTrend');
+    const trend = policyResults.reward_trend;
+    trendSpan.textContent = trend;
+    trendSpan.style.color = trend === 'improving' ? 'green' : 'red';
+    trendSpan.style.fontWeight = 'bold';
+    
+    // Display recommendations
+    const recommendationsList = document.getElementById('recommendationsList');
+    recommendationsList.innerHTML = '';
+    (data.recommendations || []).forEach(rec => {
+        const li = document.createElement('li');
+        li.textContent = rec;
+        li.style.marginBottom = '8px';
+        recommendationsList.appendChild(li);
+    });
+    
+    // Draw Bradley-Terry training chart
+    drawBradleyTerryChart(btResults);
+}
+
+function drawBradleyTerryChart(btResults) {
+    const canvas = document.getElementById('bradleyTerryChart');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const losses = btResults.training_losses || [];
+    const accuracies = btResults.training_accuracies || [];
+    
+    if (losses.length === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No training data available', canvas.width / 2, canvas.height / 2);
+        return;
+    }
+    
+    // Draw axes
+    const padding = 50;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.stroke();
+    
+    // Draw loss curve
+    ctx.strokeStyle = '#dc3545';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    for (let i = 0; i < losses.length; i++) {
+        const x = padding + (i / (losses.length - 1)) * (canvas.width - 2 * padding);
+        const normalizedLoss = Math.max(0, Math.min(1, losses[i] / Math.max(...losses)));
+        const y = canvas.height - padding - normalizedLoss * (canvas.height - 2 * padding);
+        
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Draw accuracy curve
+    if (accuracies.length > 0) {
+        ctx.strokeStyle = '#28a745';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        for (let i = 0; i < accuracies.length; i++) {
+            const x = padding + (i / (accuracies.length - 1)) * (canvas.width - 2 * padding);
+            const y = canvas.height - padding - accuracies[i] * (canvas.height - 2 * padding);
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
+    
+    // Add labels
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Training Progress', canvas.width / 2, canvas.height - 10);
+    
+    // Add legend
+    ctx.fillStyle = '#dc3545';
+    ctx.fillRect(canvas.width - 150, 20, 15, 10);
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'left';
+    ctx.fillText('Loss', canvas.width - 130, 30);
+    
+    ctx.fillStyle = '#28a745';
+    ctx.fillRect(canvas.width - 150, 40, 15, 10);
+    ctx.fillStyle = '#333';
+    ctx.fillText('Accuracy', canvas.width - 130, 50);
 }
 </script>
 {% endblock %}
