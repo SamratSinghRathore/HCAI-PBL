@@ -403,7 +403,7 @@
         <div id="feedbackStatus" class="status-message" style="display: none;"></div>
         
         <div id="trajectoryComparison" style="display: none;">
-            <h4 class="text-center mb-4">Select Your Preferred Trajectory<br>Note: The grid shown is final state after exploration stopped.</h4>
+            <h4 class="text-center mb-4">Select Your Preferred Trajectory(You can generate more options by clicking 🎯 Generate Trajectories for Comparison if none of the two options seem good enough.)<br>Note: The grid shown is final state after exploration stopped.</h4>
             
             <div class="trajectory-comparison">
                 <div class="trajectory-box" id="trajectory1" data-trajectory="1">
@@ -543,6 +543,7 @@
 <div class="training-section">
     <h2>Retrain Policy with Human Feedback</h2>
     <p>Use collected human feedback to retrain the policy using Bradley-Terry model.</p>
+    <p>Remember: Your preference in trajectories determine the result. If you give preference to less number of steps or not taking Organic cheese or always a positive Total Reward then the model learns the preference accrodingly. So what you select is what you will get.</p>
 
     <button id="retrainPolicyBtn" class="btn btn-success btn-lg" disabled>
         🔄 Retrain Policy with Feedback
