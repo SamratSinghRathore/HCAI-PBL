@@ -5,6 +5,8 @@ import json
 import uuid
 import time
 from .models import GameSession, Trajectory, HumanFeedback
+from .kl_retrain import retrain_policy_with_feedback_kl
+
 
 def get_trainer(session_id):
     try:
@@ -398,3 +400,27 @@ def debug_feedback(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+    
+@csrf_exempt
+def kl_retrain_with_feedback(request):
+    """Retrain policy using collected human feedback + BT reward and KL penalty"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+
+    session_id = request.session.get('rl_session_id')
+    if not session_id:
+        return JsonResponse({'error': 'No active session'}, status=400)
+
+    try:
+        from .rl_trainer import RLTrainer
+        original = RLTrainer(session_id)
+        result = retrain_policy_with_feedback_kl(
+            session_id=session_id,
+            original_trainer=original,
+            bt_epochs=100,
+            kl_beta=0.1,
+            retrain_episodes=10
+        )
+        return JsonResponse(result)
+    except Exception as e:
+        return JsonResponse({'error': f'Retraining failed: {str(e)}'}, status=500)

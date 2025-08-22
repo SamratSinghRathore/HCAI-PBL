@@ -14,4 +14,5 @@ urlpatterns = [
     path('reset_training/', views.reset_training, name='reset_training'),
     path('retrain_with_feedback/', views.retrain_with_feedback, name='retrain_with_feedback'),
     path('debug_feedback/', views.debug_feedback, name='debug_feedback'),
+    path('kl_retrain_with_feedback/', views.kl_retrain_with_feedback, name='kl_retrain_with_feedback'),
 ]
