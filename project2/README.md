@@ -32,45 +32,6 @@ Label reviews manually via a user interface:
 
 ---
 
-## 🚀 Getting Started
-
-### 🔧 Installation
-
-1. **Clone the repo**:
-   ```bash
-   git clone https://github.com/yourname/active-learning-imdb.git
-   cd active-learning-imdb
-   ```
-
-2. **Create a virtual environment**:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run migrations**:
-   ```bash
-   python manage.py migrate
-   ```
-
-5. **Run the server**:
-   ```bash
-   python manage.py runserver
-   ```
-
-6. **Place the dataset**:
-   Download and place the [IMDB Dataset](https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews) CSV file at:
-   ```
-   ./media/data/IMDB Dataset.csv
-   ```
-
----
-
 ## 🧠 How to Use the Interfaces
 
 Open your browser and go to:  
@@ -192,10 +153,5 @@ Use this mode to label reviews manually as if you're the oracle/human-in-the-loo
 - Dataset: [IMDB 50K Reviews from Kaggle](https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews)
 
 ---
-
-## 📃 License
-
-MIT License – Feel free to use and adapt!
-
 
 
