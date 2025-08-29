@@ -20,7 +20,7 @@ Ensure you have Python 3.11 (specifically version `3.11.9` is recommended) insta
 
 ### 2. Clone the Repository
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/SamratSinghRathore/HCAI-PBL.git
 cd HCAI-PBL
 ```
 
