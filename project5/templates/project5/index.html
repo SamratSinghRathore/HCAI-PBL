@@ -320,6 +320,11 @@
 .status-error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
 .status-info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
 
+/* Task 3 added style tweaks */
+#task3-kl-section { border: 2px solid #17a2b8; background: linear-gradient(135deg,#f0fbff 0%,#e2f7ff 100%); }
+#task3-kl-section h3 { color:#0d6efd; }
+#klResults canvas { background:#fff; border:1px solid #dee2e6; border-radius:4px; }
+
 /* Make top heading and intro text white */
 .container-fluid > h1,
 .container-fluid > p:first-of-type {
@@ -583,6 +588,86 @@
     <div class="mt-4" id="trainingRecommendations">
         <h4>Recommendations</h4>
         <ul id="recommendationsList"></ul>
+    </div>
+</div>
+
+<!-- ===================== NEW TASK 3 SECTION (ADDED) ===================== -->
+<div class="training-section" id="task3-kl-section">
+    <h3>Task 3: KL-Regularized Policy Retraining</h3>
+    <p>Retrain the policy using the learned reward (Bradley-Terry) while penalizing KL divergence to stay close to the original policy.</p>
+
+    <div class="text-center">
+        <button id="retrainKLBtn" class="btn btn-success btn-lg" disabled>
+            🔄 Retrain with Feedback + KL
+        </button>
+    </div>
+
+    <div id="klRetrainStatus" class="status-message" style="display:none;"></div>
+
+    <div id="klResults" class="training-section" style="display:none; margin-top:16px;">
+        <div class="row">
+            <div class="col-md-6">
+                <h4>BT Reward Model (KL Phase)</h4>
+                <div class="stats-display">
+                    <div><strong>Epochs:</strong> <span id="klBtEpochs">-</span></div>
+                    <div><strong>Final Loss:</strong> <span id="klBtFinalLoss">-</span></div>
+                    <div><strong>Final Accuracy:</strong> <span id="klBtFinalAcc">-</span></div>
+                </div>
+                <canvas id="klBTChart" width="600" height="220"></canvas>
+            </div>
+            <div class="col-md-6">
+                <h4>KL Policy Retraining</h4>
+                <div class="stats-display">
+                    <div><strong>Episodes:</strong> <span id="klEpisodes">-</span></div>
+                    <div><strong>Avg Reward:</strong> <span id="klAvgReward">-</span></div>
+                    <div><strong>Avg Loss:</strong> <span id="klAvgLoss">-</span></div>
+                </div>
+                <canvas id="klPolicyChart" width="600" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- =================== END NEW TASK 3 SECTION (ADDED) =================== -->
+
+</div>
+
+<!-- Animation Modal -->
+<div class="modal fade" id="animationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">🎬 Trajectory Animation</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <div class="grid-display" id="animationGrid" style="font-size: 16px;">Loading...</div>
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div><strong>Step:</strong> <span id="animationStep">0</span></div>
+                                <div><strong>Action:</strong> <span id="animationAction">-</span></div>
+                            </div>
+                            <div class="col-md-6">
+                                <div><strong>Immediate Reward(Reward for this specific step):</strong> <span id="animationReward">0</span></div>
+                                <div><strong>Total Reward(Cumulative reward from start to current step):</strong> <span id="animationTotalReward">0</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <button class="btn btn-secondary" onclick="prevStep()">⏮️ Previous</button>
+                        <button class="btn btn-primary" onclick="playPause()" id="playPauseBtn">▶️ Play</button>
+                        <button class="btn btn-secondary" onclick="nextStep()">⏭️ Next</button>
+                    </div>
+                    <!-- <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Immediate Reward:</strong> Reward for this specific step<br>
+                            <strong>Total Reward:</strong> Cumulative reward from start to current step
+                        </small>
+                    </div> -->
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1497,156 +1582,98 @@ function showStatus(message, type) {
     }
 }
 
-async function updateStats() {
+// --- Task 3 (KL retraining) helpers (added) ---
+
+function showKLStatus(message, type) {
+    const el = document.getElementById('klRetrainStatus');
+    if (!el) return;
+    el.className = `status-message status-${type}`;
+    el.textContent = message;
+    el.style.display = 'block';
+    if (type !== 'error') {
+        setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+}
+
+async function retrainWithKL() {
     try {
-        const response = await fetch('/project5/training_stats/');
+        const btn = document.getElementById('retrainKLBtn');
+        if (btn) btn.disabled = true;
+        showKLStatus('Starting KL-regularized retraining...', 'info');
+
+        const url = '/project5/kl_retrain_with_feedback/';
+        const headers = { 'Content-Type': 'application/json' };
+        try {
+            if (typeof getCookie === 'function') {
+                const csrf = getCookie('csrftoken');
+                if (csrf) headers['X-CSRFToken'] = csrf;
+            }
+        } catch {}
+
+        const caller = (typeof simpleFetch === 'function') ? simpleFetch : fetch;
+        const response = await caller(url, { method: 'POST', headers });
+
+        if (!response.ok) {
+            let err = 'Request failed';
+            try {
+                const errData = await response.json();
+                err = errData.error || err;
+            } catch {}
+            throw new Error(err);
+        }
+
         const data = await response.json();
-        
-        document.getElementById('totalEpisodes').textContent = data.total_episodes;
-        document.getElementById('totalFeedbacks').textContent = data.total_feedbacks;
-        
-        if (data.rewards.length > 0) {
-            const last10 = data.rewards.slice(-10);
-            const avg = last10.reduce((a, b) => a + b, 0) / last10.length;
-            document.getElementById('avgReward').textContent = avg.toFixed(2);
-            
-            // Update chart
-            trainingChart.data = data.rewards;
-            drawChart();
-        }
-    } catch (error) {
-        console.error('Error updating stats:', error);
+        displayKLResults(data);
+        showKLStatus('✅ KL retraining completed successfully', 'success');
+        // Refresh top-level stats if available
+        try { await updateStats(); } catch {}
+
+    } catch (e) {
+        console.error('KL retrain error:', e);
+        showKLStatus(`❌ ${e.message || e}`, 'error');
+    } finally {
+        setTimeout(() => {
+            const btn = document.getElementById('retrainKLBtn');
+            if (btn) btn.disabled = false;
+        }, 3000);
     }
 }
 
-function getCSRFToken() {
-    return getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+function displayKLResults(data) {
+    const container = document.getElementById('klResults');
+    if (!container) return;
+    container.style.display = 'block';
+
+    const bt = data.bradley_terry_training || {};
+    const stats = data.policy_retraining || {};
+
+    // BT stats
+    const losses = bt.losses || [];
+    const accs = bt.accuracy || [];
+    const epochsCount = (losses.length || (bt.epochs ? bt.epochs.length : 0) || 0);
+    document.getElementById('klBtEpochs').textContent = epochsCount;
+    document.getElementById('klBtFinalLoss').textContent = losses.length ? Number(losses[losses.length-1]).toFixed(4) : 'N/A';
+    document.getElementById('klBtFinalAcc').textContent = accs.length ? Number(accs[accs.length-1]).toFixed(3) : 'N/A';
+
+    drawKLBTChart(losses, accs);
+
+    // Policy retraining stats
+    document.getElementById('klEpisodes').textContent = stats.episodes ?? 'N/A';
+    document.getElementById('klAvgReward').textContent = (typeof stats.avg_reward === 'number') ? stats.avg_reward.toFixed(2) : 'N/A';
+    document.getElementById('klAvgLoss').textContent = (typeof stats.avg_loss === 'number') ? stats.avg_loss.toFixed(4) : 'N/A';
+
+    const epRewards = Array.isArray(stats.details) ? stats.details.map(d => (d && typeof d.total_reward === 'number') ? d.total_reward : 0) : [];
+    drawKLPolicyChart(epRewards);
 }
 
-async function checkSession() {
-    try {
-        const response = await fetch('/project5/training_stats/');
-        if (response.ok) {
-            const data = await response.json();
-            currentSession = data.session_id;
-            document.getElementById('sessionInfo').textContent = `Session: ${data.session_id.substring(0, 8)}...`;
-            
-            // Enable buttons
-            document.getElementById('trainEpisodeBtn').disabled = false;
-            document.getElementById('trainBatchBtn').disabled = false;
-            document.getElementById('generateTrajectoriesBtn').disabled = false;
-            
-            await updateStats();
-        }
-    } catch (error) {
-        // No active session
-    }
-}
-
-// CSRF token helper function
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-function prevStep() {
-    if (animationIndex > 0) {
-        animationIndex--;
-        updateAnimationDisplay();
-    }
-}
-
-function nextStep() {
-    if (animationIndex < animationData.length - 1) {
-        animationIndex++;
-        updateAnimationDisplay();
-    }
-}
-
-function playPause() {
-    if (animationPlaying) {
-        clearInterval(animationInterval);
-        animationPlaying = false;
-        document.getElementById('playPauseBtn').textContent = 'Play';
-    } else {
-        animationInterval = setInterval(() => {
-            if (animationIndex < animationData.length - 1) {
-                nextStep();
-            } else {
-                playPause(); // Stop at end
-            }
-        }, 500);
-        animationPlaying = true;
-        document.getElementById('playPauseBtn').textContent = 'Pause';
-    }
-}
-
-function displayBradleyTerryResults(data) {
-    // Show the results section
-    document.getElementById('bradleyTerryResults').style.display = 'block';
-    
-    // Update Bradley-Terry model stats
-    const btResults = data.bradley_terry_results;
-    document.getElementById('btEpochs').textContent = btResults.epochs_trained;
-    document.getElementById('btFinalLoss').textContent = btResults.final_loss?.toFixed(4) || 'N/A';
-    document.getElementById('btFinalAccuracy').textContent = btResults.final_accuracy?.toFixed(3) || 'N/A';
-    document.getElementById('btLossImprovement').textContent = btResults.loss_improvement_pct?.toFixed(1) || 'N/A';
-    document.getElementById('btConverged').textContent = btResults.converged ? '✅ Yes' : '⚠️ No';
-    
-    // Update policy retraining stats
-    const policyResults = data.policy_retraining_results;
-    document.getElementById('avgRewardAfter').textContent = policyResults.avg_reward_after_retraining?.toFixed(2) || 'N/A';
-    document.getElementById('rewardStd').textContent = policyResults.reward_std?.toFixed(2) || 'N/A';
-    document.getElementById('retrainingEpisodes').textContent = policyResults.episodes_trained || 'N/A';
-    
-    const trendSpan = document.getElementById('rewardTrend');
-    const trend = policyResults.reward_trend;
-    trendSpan.textContent = trend;
-    trendSpan.style.color = trend === 'improving' ? 'green' : 'red';
-    trendSpan.style.fontWeight = 'bold';
-    
-    // Display recommendations
-    const recommendationsList = document.getElementById('recommendationsList');
-    recommendationsList.innerHTML = '';
-    (data.recommendations || []).forEach(rec => {
-        const li = document.createElement('li');
-        li.textContent = rec;
-        li.style.marginBottom = '8px';
-        recommendationsList.appendChild(li);
-    });
-    
-    // Draw Bradley-Terry training chart
-    drawBradleyTerryChart(btResults);
-}
-
-function drawBradleyTerryChart(btResults) {
-    const canvas = document.getElementById('bradleyTerryChart');
+function drawKLBTChart(losses, accuracies) {
+    const canvas = document.getElementById('klBTChart');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const losses = btResults.training_losses || [];
-    const accuracies = btResults.training_accuracies || [];
-    
-    if (losses.length === 0) {
-        ctx.fillStyle = '#666';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('No training data available', canvas.width / 2, canvas.height / 2);
-        return;
-    }
-    
-    // Draw axes
-    const padding = 50;
+
+    const padding = 40;
+    // Axes
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -1654,61 +1681,215 @@ function drawBradleyTerryChart(btResults) {
     ctx.lineTo(padding, canvas.height - padding);
     ctx.lineTo(canvas.width - padding, canvas.height - padding);
     ctx.stroke();
-    
-    // Draw loss curve
-    ctx.strokeStyle = '#dc3545';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    
-    for (let i = 0; i < losses.length; i++) {
-        const x = padding + (i / (losses.length - 1)) * (canvas.width - 2 * padding);
-        const normalizedLoss = Math.max(0, Math.min(1, losses[i] / Math.max(...losses)));
-        const y = canvas.height - padding - normalizedLoss * (canvas.height - 2 * padding);
-        
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
+
+    if (losses && losses.length) {
+        const maxL = Math.max(...losses.map(v => Math.max(v,1e-6)));
+        ctx.strokeStyle = '#dc3545';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        losses.forEach((v,i)=>{
+            const x = padding + (i/Math.max(1,losses.length-1))*(canvas.width - 2*padding);
+            const y = canvas.height - padding - (v/maxL)*(canvas.height - 2*padding);
+            i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        });
+        ctx.stroke();
     }
-    ctx.stroke();
-    
-    // Draw accuracy curve
-    if (accuracies.length > 0) {
+    if (accuracies && accuracies.length) {
         ctx.strokeStyle = '#28a745';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        
-        for (let i = 0; i < accuracies.length; i++) {
-            const x = padding + (i / (accuracies.length - 1)) * (canvas.width - 2 * padding);
-            const y = canvas.height - padding - accuracies[i] * (canvas.height - 2 * padding);
-            
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        }
+        accuracies.forEach((v,i)=>{
+            const x = padding + (i/Math.max(1,accuracies.length-1))*(canvas.width - 2*padding);
+            const y = canvas.height - padding - Math.min(Math.max(v,0),1)*(canvas.height - 2*padding);
+            i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        });
         ctx.stroke();
     }
-    
-    // Add labels
+
     ctx.fillStyle = '#333';
     ctx.font = '12px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Training Progress', canvas.width / 2, canvas.height - 10);
-    
-    // Add legend
-    ctx.fillStyle = '#dc3545';
-    ctx.fillRect(canvas.width - 150, 20, 15, 10);
-    ctx.fillStyle = '#333';
-    ctx.textAlign = 'left';
-    ctx.fillText('Loss', canvas.width - 130, 30);
-    
-    ctx.fillStyle = '#28a745';
-    ctx.fillRect(canvas.width - 150, 40, 15, 10);
-    ctx.fillStyle = '#333';
-    ctx.fillText('Accuracy', canvas.width - 130, 50);
+    ctx.fillText('Training Progress', canvas.width/2, canvas.height - 12);
+    // legend
+    const lx = canvas.width - 150;
+    ctx.fillStyle = '#dc3545'; ctx.fillRect(lx,20,14,10); ctx.fillStyle='#333'; ctx.fillText('Loss', lx+40,29);
+    ctx.fillStyle = '#28a745'; ctx.fillRect(lx,40,14,10); ctx.fillStyle='#333'; ctx.fillText('Accuracy', lx+54,49);
 }
+
+function drawKLPolicyChart(epRewards) {
+    const canvas = document.getElementById('klPolicyChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const padding = 40;
+    // Axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.stroke();
+
+    if (epRewards && epRewards.length) {
+        const minR = Math.min(...epRewards);
+        const maxR = Math.max(...epRewards);
+        const span = Math.max(1e-6, maxR - minR);
+
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < epRewards.length; i++) {
+            const x = padding + (i / Math.max(1, epRewards.length - 1)) * (canvas.width - 2 * padding);
+            const norm = (epRewards[i] - minR) / span;
+            const y = canvas.height - padding - norm * (canvas.height - 2 * padding);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Retraining Episodes', canvas.width / 2, canvas.height - 10);
+    ctx.save();
+    ctx.translate(12, canvas.height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Episode Reward', 0, 0);
+    ctx.restore();
+}
+
+// Enable KL button when feedback count >= 1 without touching existing code
+function syncKLButton() {
+    const btn = document.getElementById('retrainKLBtn');
+    const counter = document.getElementById('totalFeedbacks');
+    if (!btn || !counter) return;
+    const n = parseInt(counter.textContent || '0', 10) || 0;
+    btn.disabled = n < 1;
+}
+
+// Independent DOMContentLoaded hook (does not modify existing one)
+document.addEventListener('DOMContentLoaded', function() {
+    // Wire the KL button
+    const btn = document.getElementById('retrainKLBtn');
+    if (btn) {
+        btn.addEventListener('click', retrainWithKL);
+    }
+
+    // Initial state sync
+    syncKLButton();
+
+    // Observe feedback counter to auto-toggle the KL button
+    const counter = document.getElementById('totalFeedbacks');
+    if (counter && 'MutationObserver' in window) {
+        const obs = new MutationObserver(() => syncKLButton());
+        obs.observe(counter, { characterData: true, childList: true, subtree: true });
+    }
+});
+
+// Add if missing: displayBradleyTerryResults used by retrainWithFeedback()
+if (typeof displayBradleyTerryResults !== 'function') {
+    function displayBradleyTerryResults(data) {
+        const container = document.getElementById('bradleyTerryResults');
+        if (!container) return;
+        container.style.display = 'block';
+
+        const bt = data.bradley_terry_results || data.bradley_terry_training || {};
+        const policy = data.policy_retraining_results || data.policy_retraining || {};
+
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = (val !== undefined && val !== null) ? val : '-';
+        };
+
+        // Bradley-Terry stats
+        setText('btEpochs', bt.epochs_trained || bt.epochs || (bt.losses ? bt.losses.length : '-') );
+        setText('btFinalLoss', bt.final_loss !== undefined ? (+bt.final_loss).toFixed(4) : (bt.losses && bt.losses.length ? (+bt.losses.slice(-1)[0]).toFixed(4) : '-'));
+        setText('btFinalAccuracy', bt.final_accuracy !== undefined ? (+bt.final_accuracy).toFixed(3) : (bt.accuracy && bt.accuracy.length ? (+bt.accuracy.slice(-1)[0]).toFixed(3) : '-'));
+        setText('btLossImprovement', bt.loss_improvement_pct !== undefined ? (+bt.loss_improvement_pct).toFixed(1) : '-');
+        setText('btConverged', bt.converged === true ? '✅ Yes' : (bt.converged === false ? '⚠️ No' : '-'));
+
+        // Policy retraining stats
+        setText('avgRewardAfter', policy.avg_reward_after_retraining !== undefined ? (+policy.avg_reward_after_retraining).toFixed(2) : (policy.avg_reward !== undefined ? (+policy.avg_reward).toFixed(2) : '-'));
+        setText('rewardStd', policy.reward_std !== undefined ? (+policy.reward_std).toFixed(2) : '-');
+        setText('retrainingEpisodes', policy.episodes_trained || policy.episodes || '-');
+        setText('rewardTrend', policy.reward_trend || '-');
+
+        // Recommendations
+        const recUl = document.getElementById('recommendationsList');
+        if (recUl) {
+            recUl.innerHTML = '';
+            const recs = data.recommendations || [];
+            recs.forEach(r => {
+                const li = document.createElement('li');
+                li.textContent = r;
+                recUl.appendChild(li);
+            });
+        }
+
+        // Chart drawing
+        const losses = bt.training_losses || bt.losses || [];
+        const accuracies = bt.training_accuracies || bt.accuracy || [];
+        if (losses.length || accuracies.length) {
+            drawBradleyTerryChartCompat(losses, accuracies);
+        }
+    }
+
+    function drawBradleyTerryChartCompat(losses, accuracies) {
+        const canvas = document.getElementById('bradleyTerryChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        const padding = 50;
+        ctx.strokeStyle = '#333';
+        ctx.beginPath();
+        ctx.moveTo(padding,padding);
+        ctx.lineTo(padding,canvas.height - padding);
+        ctx.lineTo(canvas.width - padding, canvas.height - padding);
+        ctx.stroke();
+        if (losses && losses.length) {
+            const maxL = Math.max(...losses.map(v => Math.max(v,1e-6)));
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            losses.forEach((v,i)=>{
+                const x = padding + (i/Math.max(1,losses.length-1))*(canvas.width - 2*padding);
+                const y = canvas.height - padding - (v/maxL)*(canvas.height - 2*padding);
+                i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+            });
+            ctx.stroke();
+        }
+        if (accuracies && accuracies.length) {
+            ctx.strokeStyle = '#28a745';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            accuracies.forEach((v,i)=>{
+                const x = padding + (i/Math.max(1,accuracies.length-1))*(canvas.width - 2*padding);
+                const y = canvas.height - padding - Math.min(Math.max(v,0),1)*(canvas.height - 2*padding);
+                i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+            });
+            ctx.stroke();
+        }
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Training Progress', canvas.width/2, canvas.height - 12);
+        // legend
+        const lx = canvas.width - 150;
+        ctx.fillStyle = '#dc3545'; ctx.fillRect(lx,20,14,10); ctx.fillStyle='#333'; ctx.fillText('Loss', lx+40,29);
+        ctx.fillStyle = '#28a745'; ctx.fillRect(lx,40,14,10); ctx.fillStyle='#333'; ctx.fillText('Accuracy', lx+54,49);
+    }
+}
+
+// Ensure KL button bound if original DOMContentLoaded ran before this append.
+
+document.addEventListener('DOMContentLoaded', () => {
+    const klBtn = document.getElementById('retrainKLBtn');
+    if (klBtn && !klBtn.dataset.boundKl) {
+        klBtn.addEventListener('click', retrainWithKL);
+        klBtn.dataset.boundKl = '1';
+    }
+});
 </script>
 {% endblock %}
