@@ -21,6 +21,8 @@ Ensure you have Python `3.11` (specifically version `3.11.9` is recommended) ins
 ### 2. Clone the Repository
 ```bash
 git clone https://github.com/SamratSinghRathore/HCAI-PBL.git
+```
+```bash
 cd HCAI-PBL
 ```
 
@@ -36,13 +38,15 @@ Activate the virtual environment.
 ```bash
 # On Windows (PowerShell)
 .\venv\Scripts\Activate
+```
 
+```bash
 # On Linux / macOS
 source venv/bin/activate
 ```
 
 ### 4. Install Requirements
-Install all the required packages using the `requirements.txt` file.
+Install all the required packages using the `requirements.txt` file. `--no-cache-dir` is used to avoid using cached packages.
 ```bash
 pip install --no-cache-dir -r requirements.txt
 ```
@@ -54,4 +58,8 @@ python manage.py runserver
 ```
 
 ### 6. Access the Application
-You can now access the main project homepage at [http://127.0.0.1:8000/](http://127.0.0.1:8000/). Links to individual projects can be found on this page.
+You can now access the main project homepage at 
+
+[http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+
+Links to individual projects can be found on this page.
