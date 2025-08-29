@@ -54,7 +54,7 @@ class BradleyTerryTrainer:
             session = GameSession.objects.get(session_id=self.session_id)
             feedbacks = HumanFeedback.objects.filter(session=session)
             
-            if len(feedbacks) < 1:
+            if len(feedbacks) < 5:
                 raise ValueError(f"Need at least 1 feedback sample, got {len(feedbacks)}")
             
             print(f"Training reward model with {len(feedbacks)} feedback samples")
