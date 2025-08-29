@@ -27,8 +27,8 @@
         </div>
         <div class="study-link">
             <h3>Join Our User Study</h3>
-            <p>Participate in our research to improve movie recommendations.</p>
-            <a href="{% url 'project4:study_landing' %}" class="btn btn-primary">Go to Study</a>
+            <p>This study tests whether providing explanations during movie rating improves recommendations. You will be randomly assigned to either a control or an experimental group, then rate movies and receive personalized suggestions.</p>
+            <a href="{% url 'project4:study_landing' %}" class="btn btn-primary" title="Navigates to control or experimental pages where you can contribute to the study.">Go to Study</a>
         </div>
     </div>
 </div>
@@ -116,10 +116,23 @@
 }
 .recommender-section .btn {
     margin-top: 15px;
-    padding: 10px 20px;
+    padding: 12px 30px;
     font-size: 18px;
+    background-color: #4a6fa5;
+    border: none;
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 8px;
+    display: inline-block;
+    transition: background-color 0.3s ease;
 }
-</style>
+
+.recommender-section .btn:hover {
+    background-color: #3a5a91;
+    color: white;
+    text-decoration: none;
+}
 
 .study-link {
     margin-top: 40px;
@@ -131,8 +144,22 @@
 
 .study-link .btn {
     margin-top: 15px;
-    padding: 10px 20px;
+    padding: 12px 30px;
     font-size: 18px;
+    background-color: #4a6fa5;
+    border: none;
+    color: white;
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 8px;
+    display: inline-block;
+    transition: background-color 0.3s ease;
+}
+
+.study-link .btn:hover {
+    background-color: #3a5a91;
+    color: white;
+    text-decoration: none;
 }
 </style>
 {% endblock %}

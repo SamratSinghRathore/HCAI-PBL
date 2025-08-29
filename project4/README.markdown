@@ -127,38 +127,12 @@ Below is a description of each page and its interactive elements, aligned with t
 
 ## Setup Instructions
 
-1. **Install Dependencies**:
-   ```bash
-   pip install django pandas numpy scikit-learn
-   ```
-
-2. **Place MovieLens Dataset**:
-   - Download the MovieLens small dataset (`ml-latest-small.zip`) from the [MovieLens website](https://grouplens.org/datasets/movielens/).
-   - Extract `links.csv`, `movies.csv`, `ratings.csv`, and `tags.csv` to `project4/ml-latest-small/`.
-
-3. **Configure Django**:
-   - Add `project4` to `INSTALLED_APPS` in `settings.py`.
-   - Ensure middleware includes:
-     ```python
-     MIDDLEWARE = [
-         ...
-         'django.middleware.csrf.CsrfViewMiddleware',
-         'django.contrib.sessions.middleware.SessionMiddleware',
-         ...
-     ]
-     ```
-   - Set up static files:
-     ```python
-     STATIC_URL = '/static/'
-     STATICFILES_DIRS = [BASE_DIR / "project4/static"]
-     ```
-
-5. **Start Server**:
+1. **Start Server**:
    ```bash
    python manage.py runserver
    ```
 
-6. **Access the Application**:
+2. **Access the Application**:
    - Homepage: `http://localhost:8000/project4/`
    - Study: `http://localhost:8000/project4/study/`
 
