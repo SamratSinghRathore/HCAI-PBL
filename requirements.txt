@@ -1,12 +1,12 @@
-django
+Django
 numpy
 matplotlib
 pandas 
-pygobject
 seaborn
 scikit-learn
 palmerpenguins
 gosdt
+gensim
 graphviz
 dice-ml
 torch
