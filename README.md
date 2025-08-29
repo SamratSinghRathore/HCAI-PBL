@@ -16,7 +16,7 @@
 Follow these steps to set up the project environment locally.
 
 ### 1. Prerequisites
-Ensure you have Python 3.11 (specifically version `3.11.9` is recommended) installed on your system.
+Ensure you have Python `3.11` (specifically version `3.11.9` is recommended) installed on your system.
 
 ### 2. Clone the Repository
 ```bash
